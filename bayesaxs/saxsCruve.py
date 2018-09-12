@@ -1,34 +1,30 @@
-"""
-saxsCruve.py
-Python implementation of BSS-SAXS
+import pandas as pd
+import numpy as np
 
-Handles the primary functions
-"""
+class saxsCurve(object):
+	
+	def __init__(self, filename):
+		self.filename = filename
+		self.dataarray = np.loadtxt(filename, skiprows=1)
 
+	def get_filename(self):
+		return self.filename
+	
+	def get_dataarray(self):
+		return self.dataarray
+		
+	def get_q(self):
+		return self.dataarray[:,:1]
 
-def canvas(with_attribution=True):
-    """
-    Placeholder function to show example docstring (NumPy format)
+	def get_iq(self):
+		return self.dataarray[:,1:2]
+	
+	def get_logiq(self):
+		return np.log10(self.dataarray[:,1:2])
 
-    Replace this function and doc string for your own project
-
-    Parameters
-    ----------
-    with_attribution : bool, Optional, default: True
-        Set whether or not to display who the quote is from
-
-    Returns
-    -------
-    quote : str
-        Compiled string including quote and optional attribution
-    """
-
-    quote = "The code is but a canvas to our imagination."
-    if with_attribution:
-        quote += "\n\t- Adapted from Henry David Thoreau"
-    return quote
+	def get_sigma(self):
+		return self.dataarray[:,2:3]
 
 
-if __name__ == "__main__":
-    # Do something if this file is invoked on its own
-    print(canvas())
+curve = saxsCurve("HOIP_removedNaN.dat")
+
