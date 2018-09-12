@@ -19,3 +19,7 @@ correct files.
 ## Manifest
 
 * `look_and_say.dat`: first entries of the "Look and Say" integer series, sequence [A005150](https://oeis.org/A005150)
+
+
+- Cannot recall where saxs_curve.dat file is from and what does it represent.
+- HOIP_removedNaN.dat describes a scattering profile of HOIP P26 (Luigi's work). Three columns q, Iq and Errorq.
