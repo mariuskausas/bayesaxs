@@ -1,12 +1,17 @@
 import re
+import os
 import glob
 import subprocess
 import numpy as np
 import scipy.cluster.hierarchy as sch
+import mdtraj as mdt
+import hdbscan
 import matplotlib.pyplot as plt
 import seaborn as sns
-import saxsPlots
-#import saxsChi
+
+
+# Helper functions
+
 
 class CurveSAXS(object):
 	
@@ -47,11 +52,115 @@ class CurveSAXS(object):
 
 		return self.dataarray[:, 3:4]
 
-class Trajectory(object):
 
-	def __init__(self, path2PDB):
-		self.path2PDB = path2PDB
-		self.collectionPDB = glob.glob(path2PDB)
+
+
+class Trajectory1(object):
+
+	def __init__(self, pdb_path, traj_path):
+
+		"""
+		Initialize Trajectory class by providing path to your topology file .pdb and trajectory file .xtc.
+
+		"""
+
+		self.pdb = mdt.load_pdb(pdb_path)
+		self.traj = mdt.load(traj_path, top=pdb_path)
+
+	def get_trajectory(self):
+
+		"""
+		Return loaded trajectory as an instance of a class.
+
+		"""
+
+		return self.traj
+
+	def traj_clustering(self):
+
+		"""
+		Perform HDBSCAN clustering.
+
+		"""
+
+		# Format the trajectory for HDBSCAN input
+
+		temp = self.traj.xyz
+		frames = temp.shape[0]
+		atoms = temp.shape[1]
+		data = temp.reshape((frames, atoms * 3))
+		data = data.astype("float64")
+
+		# Delete temporary data
+
+		temp = []
+
+		# Initialize HDBSCAN clusterer
+
+		clusterer = hdbscan.HDBSCAN(min_cluster_size=5, core_dist_n_jobs=-1)
+
+		# Perform clustering
+
+		cluster_labels = clusterer.fit_predict(data)
+
+		# Assign cluster labels to the object
+
+		self.cluster_labels = cluster_labels
+
+
+	def get_cluster_labels(self):
+
+		"""
+		Return cluster labels for each frame in a trajectory.
+
+		"""
+
+		return self.cluster_labels
+
+
+	def extract_traj_clusters(self):
+
+		"""
+		Extract clusters as .xtc trajectory.
+
+		"""
+
+		# Create a directory where to put cluster trajectories
+
+		self.traj_cluster_dir = "./traj_clusters/"
+
+		os.mkdir(self.traj_cluster_dir)
+
+		# Extract clusters into .xtc trajectories
+
+		for cluster in range(self.cluster_labels.min(), self.cluster_labels.max() + 1):
+			self.traj[self.cluster_labels == cluster].save_xtc(self.traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
+
+
+	def extract_cluster_leaders(self):
+
+		"""
+		Extract cluster leaders from cluster trajectories.
+
+		"""
+
+		# Create a directory where to put cluster leaders extracted from cluster trajectories
+
+		self.cluster_leader_dir = "./cluster_leaders/"
+
+		os.mkdir(self.cluster_leader_dir)
+
+		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
+
+		for cluster in range(self.cluster_labels.min() + 1, self.cluster_labels.max() + 1):
+			clustering_leader(top=self.pdb,
+							  traj=(self.traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
+							  trajnum=cluster,
+							  output_dir=self.cluster_leader_dir)
+
+		# Initialize cluster PDBs
+
+		self.collectionPDB = glob.glob("./cluster_leaders/*")
 
 	def get_collectionPDB(self):
 		return self.collectionPDB
@@ -141,6 +250,43 @@ def chi(exp, theor, error):
 	return np.sum(chi)
 
 
+def clustering_leader(top, traj, trajnum, output_dir):
+
+	"""
+	Extract a representative conformer from a given single cluster trajectory.
+
+	"""
+
+	# Load the trajectory
+
+	traj = mdt.load(traj, top=top, stride=1)
+
+	# Number of frames
+
+	nframes = traj.n_frames
+
+	# Create a RMSD distance matrix
+
+	rmsd_matrix = np.zeros((nframes, nframes))
+
+	# Calculate pairwise RMSD between each of the frame
+
+	for i in range(nframes):
+		rmsd_matrix[i:i + 1, :] = mdt.rmsd(traj, traj, i, parallel=True)
+
+	# Calculate the sum along each row
+
+	rmsd_sum = np.sum(rmsd_matrix, axis=1)
+
+	# Calculate the leader index based on the smallest number
+
+	leader_index = np.where(rmsd_sum == rmsd_sum.min())[0][0]
+
+	# Save the leader as a PDB
+
+	traj[leader_index].save_pdb(output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
+
+
 
 #curve = CurveSAXS("./data/HOIP_removedNaN_eom.fit")
 #fit = CurveSAXS("./data/HOIP_removedNaN_HOIPwt_open.fit")
@@ -151,30 +297,27 @@ def chi(exp, theor, error):
 #print(saxsChi.chi(fit.get_iq(), fit.get_fit(), fit.get_sigma()))
 
 
-# Load experimental data
-
-expcurve = CurveSAXS("./data/HOIP_removedNaN.dat")
-#saxsPlots.plot_saxsCurve(expcurve.get_q(), expcurve.get_logiq(), plot_fit=False)
-print(expcurve.get_filename())
-
-
-# Load PDB files
-
-pdbs = Trajectory("./data/pdbs/*")
-#print(pdbs.get_collectionPDB())
-
-analysis = AnalysisSAXS(pdbs)
-
-#analysis.calcFits(expcurve)
-analysis.initializeFits()
-print(expcurve.get_dataarray().shape)
-print(analysis.get_collectionFits()[0].get_dataarray().shape)
-
-print(analysis.get_fit_pairwise_matrix())
-print(analysis.get_cluster_matrix())
-
-
-
+# # Load experimental data
+#
+# expcurve = CurveSAXS("./data/HOIP_removedNaN.dat")
+# #saxsPlots.plot_saxsCurve(expcurve.get_q(), expcurve.get_logiq(), plot_fit=False)
+# print(expcurve.get_filename())
+#
+#
+# # Load PDB files
+#
+# pdbs = Trajectory2("./data/pdbs/*")
+# #print(pdbs.get_collectionPDB())
+#
+# analysis = AnalysisSAXS(pdbs)
+#
+# #analysis.calcFits(expcurve)
+# analysis.initializeFits()
+# print(expcurve.get_dataarray().shape)
+# print(analysis.get_collectionFits()[0].get_dataarray().shape)
+#
+# print(analysis.get_fit_pairwise_matrix())
+# print(analysis.get_cluster_matrix())
 
 # for fit in analysis.get_collectionFits():
 # 	print(chi(fit.get_iq(), fit.get_fit(), fit.get_sigma()))

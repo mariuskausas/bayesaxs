@@ -109,3 +109,5 @@ ENV/
 
 *.fit
 *.txt
+*.xtc
+*.pdb
