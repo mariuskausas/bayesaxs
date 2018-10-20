@@ -55,7 +55,7 @@ class CurveSAXS(object):
 
 
 
-class Trajectory1(object):
+class Trajectory(object):
 
 	def __init__(self, pdb_path, traj_path):
 
@@ -162,8 +162,13 @@ class Trajectory1(object):
 
 		self.collectionPDB = glob.glob("./cluster_leaders/*")
 
+	def set_collectionPDB(self, dir):
+		self.collectionPDB = glob.glob(dir)
+
 	def get_collectionPDB(self):
 		return self.collectionPDB
+
+
 
 
 class AnalysisSAXS(object):
@@ -234,6 +239,22 @@ class AnalysisSAXS(object):
 	def get_cluster_matrix(self):
 		return self.cluster_matrix
 
+	def clusterFits2(self):
+
+		# Perform clustering
+
+		Y = sch.linkage(self.fit_pairwise_matrix, method='average', metric="euclidean")
+		cutoff = 0.25*max(Y[:, 2])
+
+		# Extract indeces for clusters
+
+		indx = sch.fcluster(Y, cutoff, criterion='distance')
+
+		self.fit_cluster_indices = indx
+
+	def get_fit_cluster_indices(self):
+		return self.fit_cluster_indices
+
 
 
 ### Utilities
@@ -288,50 +309,71 @@ def clustering_leader(top, traj, trajnum, output_dir):
 
 
 
-#curve = CurveSAXS("./data/HOIP_removedNaN_eom.fit")
-#fit = CurveSAXS("./data/HOIP_removedNaN_HOIPwt_open.fit")
+# Load trajectory
 
-#saxsPlots.plot_saxsCurve(fit.get_q(), fit.get_iq(log=True), fit.get_fit(log=True), plot_fit=False)
-
-#print(saxsChi.chi(curve.get_iq(), curve.get_fit(), curve.get_sigma()))
-#print(saxsChi.chi(fit.get_iq(), fit.get_fit(), fit.get_sigma()))
+traj = Trajectory("./data/HOIPwtzn.pdb", "./data/tinytraj_fit.xtc")
 
 
-# # Load experimental data
-#
-# expcurve = CurveSAXS("./data/HOIP_removedNaN.dat")
-# #saxsPlots.plot_saxsCurve(expcurve.get_q(), expcurve.get_logiq(), plot_fit=False)
-# print(expcurve.get_filename())
-#
-#
-# # Load PDB files
-#
-# pdbs = Trajectory2("./data/pdbs/*")
-# #print(pdbs.get_collectionPDB())
-#
-# analysis = AnalysisSAXS(pdbs)
-#
-# #analysis.calcFits(expcurve)
-# analysis.initializeFits()
-# print(expcurve.get_dataarray().shape)
-# print(analysis.get_collectionFits()[0].get_dataarray().shape)
-#
-# print(analysis.get_fit_pairwise_matrix())
-# print(analysis.get_cluster_matrix())
 
-# for fit in analysis.get_collectionFits():
-# 	print(chi(fit.get_iq(), fit.get_fit(), fit.get_sigma()))
-# 	saxsPlots.plot_saxsCurve(fit.get_q(), fit.get_iq(log=True), fit.get_fit(log=True), plot_fit=True)
+# Trajectory clustering
 
-# analysis.calcPairwiseChiFits()
+# traj.traj_clustering()
+#
+# # Get cluster labels
+#
+# print(traj.get_cluster_labels())
+#
+# # Extract clusters
+#
+# traj.extract_traj_clusters()
+#
+# # Extract cluster leaders
+#
+# traj.extract_cluster_leaders()
+
+
+
+# Set cluster leaders
+
+traj.set_collectionPDB("./cluster_leaders/*")
+
+# Experimental SAXS profile
+
+expsaxs = CurveSAXS("./data/HOIP_removedNaN.dat")
+
+# Start analysis
+
+analysis = AnalysisSAXS(traj)
+
+# # Calculate fits for cluster leaders
+#
+# analysis.calcFits(expsaxs)
+
+
+# Load fits
+
+analysis.initializeFits()
+
+# Calculate pairwise chi values
+
+analysis.calcPairwiseChiFits()
+
+# Plot pairwise chi values
+
 # sns.heatmap(analysis.get_fit_pairwise_matrix())
 # plt.show()
-#
-# analysis.clusterFits()
+
+# Cluster fits
+
+analysis.clusterFits2()
+
+# Plot clustered fits
+
 # sns.heatmap(analysis.get_cluster_matrix())
 # plt.show()
 
+# Fit cluster indices
 
+print(type(analysis.get_fit_cluster_indices()))
 
-
-
+print(analysis.get_fit_cluster_indices())
