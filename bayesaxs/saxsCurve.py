@@ -4,6 +4,7 @@ import glob
 import subprocess
 import numpy as np
 import scipy.cluster.hierarchy as sch
+from scipy.spatial.distance import pdist, squareform
 import mdtraj as mdt
 import hdbscan
 import matplotlib.pyplot as plt
@@ -239,6 +240,10 @@ class AnalysisSAXS(object):
 	def get_cluster_matrix(self):
 		return self.cluster_matrix
 
+
+	def _test(self):
+		pass
+
 	def clusterFits2(self):
 
 		# Perform clustering
@@ -246,16 +251,69 @@ class AnalysisSAXS(object):
 		Y = sch.linkage(self.fit_pairwise_matrix, method='average', metric="euclidean")
 		cutoff = 0.25*max(Y[:, 2])
 
-		# Extract indeces for clusters
+		# Extract indices for clusters
 
 		indx = sch.fcluster(Y, cutoff, criterion='distance')
 
 		self.fit_cluster_indices = indx
 
+		# Generate a list of cluster fit indices
+
+		clusterids = np.arange(1, self.fit_cluster_indices.max() + 1, 1)
+
+		# Populate a list with cluster fit indices for each cluster index
+
+		indices_of_clusterids = []
+
+		for clusterid in clusterids:
+			set_of_indices = [i for i, x in enumerate(self.fit_cluster_indices) if x == clusterid]
+			indices_of_clusterids.append(set_of_indices)
+
+		self.indices_of_clusterids = indices_of_clusterids
+
+	def extract_representative_fits(self):
+
+		# Empty list for representative fits
+
+		repfit_list = []
+
+		for clusterid_set in self.indices_of_clusterids:
+			clusterid_array = np.zeros((len(clusterid_set), len(clusterid_set)))
+
+			for i in range(len(clusterid_set)):
+				for j in range(len(clusterid_set)):
+					clusterid_array[i:i+1, j:j+1] = chi(self.get_collectionFits()[i].get_fit(),
+																self.get_collectionFits()[j].get_fit(),
+																self.get_collectionFits()[i].get_sigma())
+
+			condensed_dist_matrix_of_clusterid = pdist(clusterid_array, metric='euclidean')
+
+			squareform_dist_matrix_of_clusterid = squareform(condensed_dist_matrix_of_clusterid)
+
+			squareform_dist_matrix_axis_sum_of_clusterid = np.sum(squareform_dist_matrix_of_clusterid, axis=0)
+
+			min_squareform_dist_matrix_axis_sum_of_clusterid = np.min(squareform_dist_matrix_axis_sum_of_clusterid)
+
+			array = np.array(clusterid_set)
+
+			repfit_of_clusterid = array[
+				squareform_dist_matrix_axis_sum_of_clusterid == min_squareform_dist_matrix_axis_sum_of_clusterid]
+
+			repfit_list.append(repfit_of_clusterid[0])
+
+		self.repfit_list = repfit_list
+
+
+
+
 	def get_fit_cluster_indices(self):
 		return self.fit_cluster_indices
 
+	def get_indices_of_clusterids(self):
+		return self.indices_of_clusterids
 
+	def get_repfit(self):
+		return self.repfit_list
 
 ### Utilities
 
@@ -317,11 +375,15 @@ traj = Trajectory("./data/HOIPwtzn.pdb", "./data/tinytraj_fit.xtc")
 
 # Trajectory clustering
 
-# traj.traj_clustering()
-#
-# # Get cluster labels
-#
+traj.traj_clustering()
+
+# Get cluster labels
+
 # print(traj.get_cluster_labels())
+#
+# plt.plot(traj.get_cluster_labels(), 'x')
+# plt.show()
+
 #
 # # Extract clusters
 #
@@ -377,3 +439,36 @@ analysis.clusterFits2()
 print(type(analysis.get_fit_cluster_indices()))
 
 print(analysis.get_fit_cluster_indices())
+
+print(len(analysis.get_collectionFits()))
+
+print(analysis.get_indices_of_clusterids())
+#
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[6].get_fit(log=True), 'r')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True), 'r')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[14].get_fit(log=True), 'r')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[15].get_fit(log=True), 'r')
+#
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True), 'b')
+#
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[0].get_fit(log=True), 'k')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[5].get_fit(log=True), 'k')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True), 'k')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[10].get_fit(log=True), 'k')
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[11].get_fit(log=True), 'k')
+# plt.show()
+
+analysis.extract_representative_fits()
+
+print(analysis.get_repfit())
+
+
+#
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[1].get_fit(log=True))
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True))
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True))
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[12].get_fit(log=True))
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True))
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[4].get_fit(log=True))
+# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[7].get_fit(log=True))
+# plt.show()
