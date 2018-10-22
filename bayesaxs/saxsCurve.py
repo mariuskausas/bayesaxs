@@ -64,9 +64,12 @@ class Trajectory(object):
 		Initialize Trajectory class by providing path to your topology file .pdb and trajectory file .xtc.
 
 		"""
-
+		# FIXME understand how to correctly define attributes outside the __init__
 		self.pdb = mdt.load_pdb(pdb_path)
 		self.traj = mdt.load(traj_path, top=pdb_path)
+		self.cluster_labels = None
+		self.traj_cluster_dir = None
+		self.cluster_leader_dir = None
 
 	def get_trajectory(self):
 
