@@ -11,9 +11,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-# Helper functions
-
-
 class CurveSAXS(object):
 	
 	def __init__(self, filename):
@@ -34,7 +31,7 @@ class CurveSAXS(object):
 
 		# FIXME get the best way to deal with flags
 
-		if log == True:
+		if log is True:
 			return np.log10(self.dataarray[:, 1:2])
 
 		return self.dataarray[:, 1:2]
@@ -48,48 +45,69 @@ class CurveSAXS(object):
 
 	def get_fit(self, log=False):
 		# FIXME write a test to check if the 4 column with fit information does exists or not
-		if log == True:
+		if log is True:
 			return np.log10(self.dataarray[:, 3:4])
 
 		return self.dataarray[:, 3:4]
 
 
-
-
 class Trajectory(object):
 
-	def __init__(self, pdb_path, traj_path):
+	def __init__(self, title="Unkown"):
 
 		"""
 		Initialize Trajectory class by providing path to your topology file .pdb and trajectory file .xtc.
 
 		"""
 		# FIXME understand how to correctly define attributes outside the __init__
-		self.pdb = mdt.load_pdb(pdb_path)
-		self.traj = mdt.load(traj_path, top=pdb_path)
-		self.cluster_labels = None
-		self.traj_cluster_dir = None
-		self.cluster_leader_dir = None
+		self._title = str(title).strip()
+		self._pdb = None
+		self._traj = None
+		self._cluster_labels = None
+		self._traj_cluster_dir = None
+		self._cluster_leader_dir = None
+		self._collectionPDB = None
 
-	def get_trajectory(self):
+	def __repr__(self):
 
-		"""
-		Return loaded trajectory as an instance of a class.
+		return "{0}: Number of clusters {1}".format(self._title, self._cluster_labels.max())
 
-		"""
+	def __str__(self):
 
-		return self.traj
+		return self.__class__.__name__ + ' ' + self._title
 
-	def traj_clustering(self):
+	def getModel(self):
 
-		"""
-		Perform HDBSCAN clustering.
+		"""Returns self."""
 
-		"""
+		return self
+
+	def setTitle(self, title):
+
+		""" Set a new title."""
+
+		self._title = str(title)
+
+	def loadTraj(self, pdb_path, traj_path):
+
+		""" Load a trajectory"""
+
+		self._pdb = mdt.load_pdb(pdb_path)
+		self._traj = mdt.load(traj_path, top=pdb_path)
+
+	def getTraj(self):
+
+		"""Return loaded trajectory as an instance of a class."""
+
+		return self._traj
+
+	def trajClustering(self):
+		# FIXME add options to change clustering parameters
+		"""Perform HDBSCAN clustering."""
 
 		# Format the trajectory for HDBSCAN input
 
-		temp = self.traj.xyz
+		temp = self._traj.xyz
 		frames = temp.shape[0]
 		atoms = temp.shape[1]
 		data = temp.reshape((frames, atoms * 3))
@@ -109,70 +127,65 @@ class Trajectory(object):
 
 		# Assign cluster labels to the object
 
-		self.cluster_labels = cluster_labels
+		self._cluster_labels = cluster_labels
 
 
-	def get_cluster_labels(self):
+	def getClusterLabels(self):
 
-		"""
-		Return cluster labels for each frame in a trajectory.
+		""" Return cluster labels for each frame in a trajectory."""
 
-		"""
-
-		return self.cluster_labels
+		return self._cluster_labels
 
 
-	def extract_traj_clusters(self):
+	def extractTrajClusters(self):
 
-		"""
-		Extract clusters as .xtc trajectory.
-
-		"""
+		"""Extract clusters as .xtc trajectory."""
 
 		# Create a directory where to put cluster trajectories
 
-		self.traj_cluster_dir = "./traj_clusters/"
+		self._traj_cluster_dir = "./traj_clusters/"
 
-		os.mkdir(self.traj_cluster_dir)
+		os.mkdir(self._traj_cluster_dir)
 
 		# Extract clusters into .xtc trajectories
 
-		for cluster in range(self.cluster_labels.min(), self.cluster_labels.max() + 1):
-			self.traj[self.cluster_labels == cluster].save_xtc(self.traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
+		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
+			self._traj[self._cluster_labels == cluster].save_xtc(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
 
-	def extract_cluster_leaders(self):
+	def extractClusterLeaders(self):
 
-		"""
-		Extract cluster leaders from cluster trajectories.
-
-		"""
+		"""Extract cluster leaders from cluster trajectories."""
 
 		# Create a directory where to put cluster leaders extracted from cluster trajectories
 
-		self.cluster_leader_dir = "./cluster_leaders/"
+		self._cluster_leader_dir = "./cluster_leaders/"
 
-		os.mkdir(self.cluster_leader_dir)
+		os.mkdir(self._cluster_leader_dir)
 
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
 
-		for cluster in range(self.cluster_labels.min() + 1, self.cluster_labels.max() + 1):
-			clustering_leader(top=self.pdb,
-							  traj=(self.traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
+		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
+			clustering_leader(top=self._pdb,
+							  traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							  trajnum=cluster,
-							  output_dir=self.cluster_leader_dir)
+							  output_dir=self._cluster_leader_dir)
 
 		# Initialize cluster PDBs
 
-		self.collectionPDB = glob.glob("./cluster_leaders/*")
+		self._collectionPDB = glob.glob("./cluster_leaders/*")
 
-	def set_collectionPDB(self, dir):
-		self.collectionPDB = glob.glob(dir)
+	def loadClusterLeaders(self, dir_to_pdbs):
 
-	def get_collectionPDB(self):
-		return self.collectionPDB
+		""" Load cluster leaders"""
 
+		self._collectionPDB = glob.glob(dir_to_pdbs)
 
+	def getClusterLeaders(self):
+
+		""" Returns cluster leaders """
+
+		return self._collectionPDB
 
 
 class AnalysisSAXS(object):
@@ -370,108 +383,108 @@ def clustering_leader(top, traj, trajnum, output_dir):
 
 
 
-# Load trajectory
-
-traj = Trajectory("./data/HOIPwtzn.pdb", "./data/tinytraj_fit.xtc")
-
-
-
-# Trajectory clustering
-
-traj.traj_clustering()
-
-# Get cluster labels
-
-# print(traj.get_cluster_labels())
+# # Load trajectory
 #
-# plt.plot(traj.get_cluster_labels(), 'x')
-# plt.show()
-
+# traj = Trajectory("./data/HOIPwtzn.pdb", "./data/tinytraj_fit.xtc")
 #
-# # Extract clusters
 #
-# traj.extract_traj_clusters()
 #
-# # Extract cluster leaders
+# # Trajectory clustering
 #
-# traj.extract_cluster_leaders()
-
-
-
-# Set cluster leaders
-
-traj.set_collectionPDB("./cluster_leaders/*")
-
-# Experimental SAXS profile
-
-expsaxs = CurveSAXS("./data/HOIP_removedNaN.dat")
-
-# Start analysis
-
-analysis = AnalysisSAXS(traj)
-
-# # Calculate fits for cluster leaders
+# traj.traj_clustering()
 #
-# analysis.calcFits(expsaxs)
-
-
-# Load fits
-
-analysis.initializeFits()
-
-# Calculate pairwise chi values
-
-analysis.calcPairwiseChiFits()
-
-# Plot pairwise chi values
-
-# sns.heatmap(analysis.get_fit_pairwise_matrix())
-# plt.show()
-
-# Cluster fits
-
-analysis.clusterFits2()
-
-# Plot clustered fits
-
-# sns.heatmap(analysis.get_cluster_matrix())
-# plt.show()
-
-# Fit cluster indices
-
-print(type(analysis.get_fit_cluster_indices()))
-
-print(analysis.get_fit_cluster_indices())
-
-print(len(analysis.get_collectionFits()))
-
-print(analysis.get_indices_of_clusterids())
+# # Get cluster labels
 #
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[6].get_fit(log=True), 'r')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True), 'r')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[14].get_fit(log=True), 'r')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[15].get_fit(log=True), 'r')
+# # print(traj.get_cluster_labels())
+# #
+# # plt.plot(traj.get_cluster_labels(), 'x')
+# # plt.show()
 #
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True), 'b')
+# #
+# # # Extract clusters
+# #
+# # traj.extract_traj_clusters()
+# #
+# # # Extract cluster leaders
+# #
+# # traj.extract_cluster_leaders()
 #
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[0].get_fit(log=True), 'k')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[5].get_fit(log=True), 'k')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True), 'k')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[10].get_fit(log=True), 'k')
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[11].get_fit(log=True), 'k')
-# plt.show()
-
-analysis.extract_representative_fits()
-
-print(analysis.get_repfit())
-
-
 #
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[1].get_fit(log=True))
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True))
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True))
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[12].get_fit(log=True))
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True))
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[4].get_fit(log=True))
-# plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[7].get_fit(log=True))
-# plt.show()
+#
+# # Set cluster leaders
+#
+# traj.set_collectionPDB("./cluster_leaders/*")
+#
+# # Experimental SAXS profile
+#
+# expsaxs = CurveSAXS("./data/HOIP_removedNaN.dat")
+#
+# # Start analysis
+#
+# analysis = AnalysisSAXS(traj)
+#
+# # # Calculate fits for cluster leaders
+# #
+# # analysis.calcFits(expsaxs)
+#
+#
+# # Load fits
+#
+# analysis.initializeFits()
+#
+# # Calculate pairwise chi values
+#
+# analysis.calcPairwiseChiFits()
+#
+# # Plot pairwise chi values
+#
+# # sns.heatmap(analysis.get_fit_pairwise_matrix())
+# # plt.show()
+#
+# # Cluster fits
+#
+# analysis.clusterFits2()
+#
+# # Plot clustered fits
+#
+# # sns.heatmap(analysis.get_cluster_matrix())
+# # plt.show()
+#
+# # Fit cluster indices
+#
+# print(type(analysis.get_fit_cluster_indices()))
+#
+# print(analysis.get_fit_cluster_indices())
+#
+# print(len(analysis.get_collectionFits()))
+#
+# print(analysis.get_indices_of_clusterids())
+# #
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[6].get_fit(log=True), 'r')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True), 'r')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[14].get_fit(log=True), 'r')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[15].get_fit(log=True), 'r')
+# #
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True), 'b')
+# #
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[0].get_fit(log=True), 'k')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[5].get_fit(log=True), 'k')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True), 'k')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[10].get_fit(log=True), 'k')
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[11].get_fit(log=True), 'k')
+# # plt.show()
+#
+# analysis.extract_representative_fits()
+#
+# print(analysis.get_repfit())
+#
+#
+# #
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[1].get_fit(log=True))
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True))
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True))
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[12].get_fit(log=True))
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True))
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[4].get_fit(log=True))
+# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[7].get_fit(log=True))
+# # plt.show()
