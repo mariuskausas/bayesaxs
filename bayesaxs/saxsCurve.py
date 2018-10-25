@@ -53,13 +53,13 @@ class CurveSAXS(object):
 
 class Trajectory(object):
 
-	def __init__(self, title="Unkown"):
+	def __init__(self, title="unkown"):
 
 		"""
-		Initialize Trajectory class by providing path to your topology file .pdb and trajectory file .xtc.
+		Trajectory class initialization.
 
 		"""
-		# FIXME understand how to correctly define attributes outside the __init__
+
 		self._title = str(title).strip()
 		self._pdb = None
 		self._traj = None
@@ -70,7 +70,10 @@ class Trajectory(object):
 
 	def __repr__(self):
 
-		return "{0}: Number of clusters {1}".format(self._title, self._cluster_labels.max())
+		if self._cluster_labels is None:
+			return "{0}".format(self._title)
+		else:
+			return "{0}: Number of clusters {1}".format(self._title, self._cluster_labels.max())
 
 	def __str__(self):
 
@@ -78,26 +81,36 @@ class Trajectory(object):
 
 	def getModel(self):
 
-		"""Returns self."""
+		"""Returns self"""
 
 		return self
 
 	def setTitle(self, title):
 
-		""" Set a new title."""
+		"""
+		Set a new title for Trajectory instance.
+
+		:param title: A new title as a string
+		:return:
+		"""
 
 		self._title = str(title)
 
 	def loadTraj(self, pdb_path, traj_path):
 
-		""" Load a trajectory"""
+		"""
+		Load a trajectory file.
+
+		:param pdb_path: Path to topology file (.pdb).
+		:param traj_path: Path to a trajectory file (.xtc).
+		"""
 
 		self._pdb = mdt.load_pdb(pdb_path)
 		self._traj = mdt.load(traj_path, top=pdb_path)
 
 	def getTraj(self):
 
-		"""Return loaded trajectory as an instance of a class."""
+		"""Return a loaded trajectory."""
 
 		return self._traj
 
@@ -129,17 +142,15 @@ class Trajectory(object):
 
 		self._cluster_labels = cluster_labels
 
-
 	def getClusterLabels(self):
 
-		""" Return cluster labels for each frame in a trajectory."""
+		""" Return cluster label for each frame in a trajectory."""
 
 		return self._cluster_labels
 
-
 	def extractTrajClusters(self):
 
-		"""Extract clusters as .xtc trajectory."""
+		"""Extract clusters as .xtc trajectories."""
 
 		# Create a directory where to put cluster trajectories
 
@@ -152,8 +163,7 @@ class Trajectory(object):
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			self._traj[self._cluster_labels == cluster].save_xtc(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
-
-	def extractClusterLeaders(self):
+	def extractClusterRepresentatives(self):
 
 		"""Extract cluster leaders from cluster trajectories."""
 
@@ -175,13 +185,13 @@ class Trajectory(object):
 
 		self._collectionPDB = glob.glob("./cluster_leaders/*")
 
-	def loadClusterLeaders(self, dir_to_pdbs):
+	def loadClusterRepresentatives(self, dir_to_pdbs):
 
 		""" Load cluster leaders"""
 
 		self._collectionPDB = glob.glob(dir_to_pdbs)
 
-	def getClusterLeaders(self):
+	def getClusterRepresentatives(self):
 
 		""" Returns cluster leaders """
 
