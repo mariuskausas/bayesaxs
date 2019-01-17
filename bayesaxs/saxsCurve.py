@@ -13,15 +13,20 @@ import seaborn as sns
 
 class Curve(object):
 	
-	def __init__(self, title="Unnamed"):
+	def __init__(self, path_to_file):
 
-		self._title = title
-		self._path_to_file = None
-		self._curve_data = None
-		self._q = None
-		self._iq = None
-		self._sigma = None
-		self._fit = None
+		# Define path, title and load all curve data
+
+		self._path_to_file = path_to_file
+		self._title = str(self._path_to_file)
+		self._curve_data = np.loadtxt(path_to_file, skiprows=1)
+
+		# Set q, I(q), sigma and fit values
+
+		self._q = self._curve_data[:, :1]
+		self._iq = self._curve_data[:, 1:2]
+		self._sigma = self._curve_data[:, 2:3]
+		self._fit = self._curve_data[:, 3:4]
 
 	def __repr__(self):
 
@@ -42,25 +47,6 @@ class Curve(object):
 		""" Set a new title for a curve."""
 
 		self._title = str(title)
-
-	def load_curve(self, path_to_file):
-
-		""" Load scattering curve."""
-
-		# FIXME skiprows set to 1. Quick fix for loading experimental and calculated fit scatter data
-
-		self._path_to_file = path_to_file
-		self._curve_data = np.loadtxt(path_to_file, skiprows=1)
-
-		# Set q, I(q) and sigma values
-
-		self._q = self._curve_data[:, :1]
-		self._iq = self._curve_data[:, 1:2]
-		self._sigma = self._curve_data[:, 2:3]
-
-		# FIXME Needs to be check first if the 4th column exists
-
-		self._fit = self._curve_data[:, 3:4]
 
 	def get_dataarray(self):
 
@@ -295,8 +281,16 @@ class Analysis(object):
 		# Initialize the directory where calculate fits are
 
 		# FIXME use the name of a fit in the tile
+		# FIXME sort the fits by numbers? Needs to be re-ordered possibly
+		# FIXME might be redundant - check better options in the future
 
-		self._fit_set = [Curve(fit) for fit in glob.glob("./*.fit")]
+		self._path_to_fits = glob.glob("*.fit")
+
+		self._fit_set = [Curve(fit) for fit in glob.glob("*.fit")]
+
+	def get_path_to_fits(self):
+
+		return self._path_to_fits
 
 	def get_fit_set(self):
 
@@ -317,9 +311,9 @@ class Analysis(object):
 		# FIXME how can one improve this + make sure that it actually does what you want
 		for i in range(number_of_fits):
 			for j in range(number_of_fits):
-				chi_pairwise_matrix[i:i+1, j:j+1] = chi(self._fit_set()[i].get_fit(),
-														self._fit_set()[j].get_fit(),
-														self._fit_set()[i].get_sigma())
+				chi_pairwise_matrix[i:i+1, j:j+1] = chi(self._fit_set[i].get_fit(),
+														self._fit_set[j].get_fit(),
+														self._fit_set[i].get_sigma())
 
 		self._chi_pairwise_matrix = chi_pairwise_matrix
 
@@ -329,7 +323,7 @@ class Analysis(object):
 
 		return self._chi_pairwise_matrix
 
-	def clusterFits(self):
+	def cluster_fits(self):
 
 		# FIXME how to track the index of a fit
 		# FIXME am I changing the values of a .fit_pairwise_matrix ?
@@ -351,7 +345,7 @@ class Analysis(object):
 	def get_cluster_matrix(self):
 		return self._cluster_matrix
 
-	def clusterFits2(self):
+	def cluster_fits2(self):
 
 		# Perform clustering
 
@@ -389,9 +383,9 @@ class Analysis(object):
 
 			for i in range(len(clusterid_set)):
 				for j in range(len(clusterid_set)):
-					clusterid_array[i:i+1, j:j+1] = chi(self._fit_set()[i].get_fit(),
-																self._fit_set()[j].get_fit(),
-																self._fit_set()[i].get_sigma())
+					clusterid_array[i:i+1, j:j+1] = chi(self._fit_set[i].get_fit(),
+																self._fit_set[j].get_fit(),
+																self._fit_set[i].get_sigma())
 
 			condensed_dist_matrix_of_clusterid = pdist(clusterid_array, metric='euclidean')
 
@@ -471,108 +465,23 @@ def cluster_leader(top, traj, trajnum, output_dir):
 
 
 
-# # Load trajectory
-#
-# traj = Trajectory("./data/HOIPwtzn.pdb", "./data/tinytraj_fit.xtc")
-#
-#
-#
-# # Trajectory clustering
-#
-# traj.traj_clustering()
-#
-# # Get cluster labels
-#
-# # print(traj.get_cluster_labels())
-# #
-# # plt.plot(traj.get_cluster_labels(), 'x')
-# # plt.show()
-#
-# #
-# # # Extract clusters
-# #
-# # traj.extract_traj_clusters()
-# #
-# # # Extract cluster leaders
-# #
-# # traj.extract_cluster_leaders()
-#
-#
-#
-# # Set cluster leaders
-#
-# traj.set_collectionPDB("./cluster_leaders/*")
-#
-# # Experimental SAXS profile
-#
-# expsaxs = CurveSAXS("./data/HOIP_removedNaN.dat")
-#
-# # Start analysis
-#
-# analysis = AnalysisSAXS(traj)
-#
-# # # Calculate fits for cluster leaders
-# #
-# # analysis.calcFits(expsaxs)
-#
-#
-# # Load fits
-#
-# analysis.initializeFits()
-#
-# # Calculate pairwise chi values
-#
-# analysis.calcPairwiseChiFits()
-#
-# # Plot pairwise chi values
-#
-# # sns.heatmap(analysis.get_fit_pairwise_matrix())
-# # plt.show()
-#
-# # Cluster fits
-#
-# analysis.clusterFits2()
-#
-# # Plot clustered fits
-#
-# # sns.heatmap(analysis.get_cluster_matrix())
-# # plt.show()
-#
-# # Fit cluster indices
-#
-# print(type(analysis.get_fit_cluster_indices()))
-#
-# print(analysis.get_fit_cluster_indices())
-#
-# print(len(analysis.get_collectionFits()))
-#
-# print(analysis.get_indices_of_clusterids())
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[6].get_fit(log=True), 'r')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True), 'r')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[14].get_fit(log=True), 'r')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[15].get_fit(log=True), 'r')
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True), 'b')
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[0].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[5].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[10].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[11].get_fit(log=True), 'k')
-# # plt.show()
-#
-# analysis.extract_representative_fits()
-#
-# print(analysis.get_repfit())
-#
-#
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[1].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[12].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[4].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[7].get_fit(log=True))
-# # plt.show()
+
+
+
+analysis = Analysis()
+
+analysis.initialize_fits()
+
+print(analysis.get_fit_set())
+
+analysis.calc_pairwise_chi()
+
+analysis.cluster_fits2()
+
+analysis.extract_representative_fits()
+
+print(analysis.get_indices_of_clusterids())
+
+
+
+print(analysis.get_repfit())
