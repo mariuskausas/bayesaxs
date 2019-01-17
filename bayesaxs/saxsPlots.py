@@ -28,3 +28,18 @@ plt.ylim(-2.75, -0.8)
 plt.legend()
 plt.savefig("cluster_fits.png", dpi=600)
 plt.show()
+
+curves1 = analysis.get_repfit()
+
+plt.figure(figsize=(10, 10))
+for indx, curve in enumerate(curves1):
+		plt.plot(curves1[indx].get_q(),
+				 curves1[indx].get_logfit(),
+				 label=str(curves1[indx].get_title()),
+				 color=colors[indx],
+				 linewidth=2)
+plt.xlim(0, 0.15)
+plt.ylim(-2.75, -0.8)
+plt.legend()
+plt.savefig("selected_cluster_fits.png", dpi=600)
+plt.show()

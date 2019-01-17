@@ -160,13 +160,11 @@ class Trajectory(object):
 
 		self._cluster_labels = cluster_labels
 
-
 	def get_cluster_labels(self):
 
 		""" Return cluster labels for each frame in a trajectory."""
 
 		return self._cluster_labels
-
 
 	def extract_traj_clusters(self):
 
@@ -183,7 +181,6 @@ class Trajectory(object):
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			self._traj[self._cluster_labels == cluster].save_xtc(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
-
 	def extract_cluster_leaders(self):
 
 		"""Extract cluster leaders from cluster trajectories."""
@@ -197,7 +194,7 @@ class Trajectory(object):
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
 
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
-			cluster_leader(top=self._pdb,
+			_cluster_leader(top=self._pdb,
 							  traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							  trajnum=cluster,
 							  output_dir=self._cluster_leader_dir)
@@ -225,8 +222,13 @@ class Analysis(object):
 
 		self._title = title
 		self._leader_set = None
+		self._path_to_fits = None
 		self._fit_set = None
 		self._chi_pairwise_matrix = None
+		self._cluster_matrix = None
+		self._fit_cluster_indices = None
+		self._indices_of_clusterids = None
+		self._repfit_list = None
 
 	def __repr__(self):
 
@@ -258,14 +260,14 @@ class Analysis(object):
 
 		for pdb in range(len(self._leader_set)):
 
-			crysolCommand = "crysol "\
+			crysol_command = "crysol "\
 							+ self._leader_set[pdb]\
 							+ " "\
 							+ exp_curve._get_path_to_file()\
 							+ " "\
 							+ "-p "\
 							+ str(int(re.findall("\d+", self._leader_set[pdb])[0]))
-			process = subprocess.Popen(crysolCommand.split(), stdout=subprocess.PIPE)
+			process = subprocess.Popen(crysol_command.split(), stdout=subprocess.PIPE)
 			process.communicate()
 
 	def get_crysol_summary(self):
@@ -300,22 +302,25 @@ class Analysis(object):
 
 		return self._fit_set
 
+	# def calc_pairwise_chi2(self):
+	#
+	# 	""" Calculate pairwise Chi square values between theoreatical scattering curves."""
+	#
+	# 	number_of_fits = len(self._fit_set)
+	#
+	# 	chi_pairwise_matrix = np.zeros((number_of_fits, number_of_fits))
+	#
+	# 	for i in range(number_of_fits):
+	# 		for j in range(number_of_fits):
+	# 			chi_pairwise_matrix[i:i+1, j:j+1] = _chi(self._fit_set[i].get_fit(),
+	# 													self._fit_set[j].get_fit(),
+	# 													self._fit_set[i].get_sigma())
+	#
+	# 	self._chi_pairwise_matrix = chi_pairwise_matrix
+
 	def calc_pairwise_chi(self):
 
-		""" Calculate pairwise Chi square values between theoreatical scattering curves."""
-
-		number_of_fits = len(self._fit_set)
-
-		chi_pairwise_matrix = np.zeros((number_of_fits, number_of_fits))
-
-		# FIXME how can one improve this + make sure that it actually does what you want
-		for i in range(number_of_fits):
-			for j in range(number_of_fits):
-				chi_pairwise_matrix[i:i+1, j:j+1] = chi(self._fit_set[i].get_fit(),
-														self._fit_set[j].get_fit(),
-														self._fit_set[i].get_sigma())
-
-		self._chi_pairwise_matrix = chi_pairwise_matrix
+		self._chi_pairwise_matrix = _pairwise_chi(self._fit_set)
 
 	def get_fit_pairwise_matrix(self):
 
@@ -324,6 +329,33 @@ class Analysis(object):
 		return self._chi_pairwise_matrix
 
 	def cluster_fits(self):
+
+		# Perform clustering
+
+		Y = sch.linkage(self._chi_pairwise_matrix, method='average', metric="euclidean")
+		cutoff = 0.25*max(Y[:, 2])
+
+		# Extract indices for clusters
+
+		indx = sch.fcluster(Y, cutoff, criterion='distance')
+
+		self._fit_cluster_indices = indx
+
+		# Generate a list of cluster fit indices
+
+		clusterids = np.arange(1, self._fit_cluster_indices.max() + 1, 1)
+
+		# Populate a list with cluster fit indices for each cluster index
+
+		indices_of_clusterids = []
+
+		for clusterid in clusterids:
+			set_of_indices = [i for i, x in enumerate(self._fit_cluster_indices) if x == clusterid]
+			indices_of_clusterids.append(set_of_indices)
+
+		self._indices_of_clusterids = indices_of_clusterids
+
+	def cluster_fits2(self):
 
 		# FIXME how to track the index of a fit
 		# FIXME am I changing the values of a .fit_pairwise_matrix ?
@@ -341,36 +373,9 @@ class Analysis(object):
 
 		self._cluster_matrix = cluster_matrix
 
-
 	def get_cluster_matrix(self):
+
 		return self._cluster_matrix
-
-	def cluster_fits2(self):
-
-		# Perform clustering
-
-		Y = sch.linkage(self._chi_pairwise_matrix, method='average', metric="euclidean")
-		cutoff = 0.25*max(Y[:, 2])
-
-		# Extract indices for clusters
-
-		indx = sch.fcluster(Y, cutoff, criterion='distance')
-
-		self.fit_cluster_indices = indx
-
-		# Generate a list of cluster fit indices
-
-		clusterids = np.arange(1, self.fit_cluster_indices.max() + 1, 1)
-
-		# Populate a list with cluster fit indices for each cluster index
-
-		indices_of_clusterids = []
-
-		for clusterid in clusterids:
-			set_of_indices = [i for i, x in enumerate(self.fit_cluster_indices) if x == clusterid]
-			indices_of_clusterids.append(set_of_indices)
-
-		self.indices_of_clusterids = indices_of_clusterids
 
 	def extract_representative_fits(self):
 
@@ -378,44 +383,50 @@ class Analysis(object):
 
 		repfit_list = []
 
-		for clusterid_set in self.indices_of_clusterids:
-			clusterid_array = np.zeros((len(clusterid_set), len(clusterid_set)))
+		# For each cluster set find a representative member and append to a list
 
-			for i in range(len(clusterid_set)):
-				for j in range(len(clusterid_set)):
-					clusterid_array[i:i+1, j:j+1] = chi(self._fit_set[i].get_fit(),
-																self._fit_set[j].get_fit(),
-																self._fit_set[i].get_sigma())
+		for clusterid_set in self._indices_of_clusterids:
 
-			condensed_dist_matrix_of_clusterid = pdist(clusterid_array, metric='euclidean')
+			# Extract appropriate clusterid curves for the whole fit set
 
-			squareform_dist_matrix_of_clusterid = squareform(condensed_dist_matrix_of_clusterid)
+			clusterid_curves = [self._fit_set[i] for i in clusterid_set]
 
-			squareform_dist_matrix_axis_sum_of_clusterid = np.sum(squareform_dist_matrix_of_clusterid, axis=0)
+			# Calculate a pair-wise chi matrix
 
-			min_squareform_dist_matrix_axis_sum_of_clusterid = np.min(squareform_dist_matrix_axis_sum_of_clusterid)
+			pairwise_chi = _pairwise_chi(clusterid_curves)
 
-			array = np.array(clusterid_set)
+			# Extract a representative member (convert a list to an array, pass a boolean np array for indexing)
 
-			repfit_of_clusterid = array[
-				squareform_dist_matrix_axis_sum_of_clusterid == min_squareform_dist_matrix_axis_sum_of_clusterid]
+			repfit_of_clusterid = np.array(clusterid_set)[_repr_distmat(pairwise_chi)][0]
 
-			repfit_list.append(repfit_of_clusterid[0])
+			# Append a representative member to a list
 
-		self.repfit_list = repfit_list
+			repfit_list.append(repfit_of_clusterid)
+
+		self._repfit_list = [self._fit_set[i] for i in repfit_list]
 
 	def get_fit_cluster_indices(self):
-		return self.fit_cluster_indices
+
+		return self._fit_cluster_indices
 
 	def get_indices_of_clusterids(self):
-		return self.indices_of_clusterids
+
+		return self._indices_of_clusterids
 
 	def get_repfit(self):
-		return self.repfit_list
 
-### Utilities
+		return self._repfit_list
 
-def chi(exp, theor, error):
+
+# Utilities
+
+
+def _chi(exp, theor, error):
+
+	"""
+	Calculate reduced chi squared.
+
+	"""
 
 	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
 	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
@@ -427,7 +438,7 @@ def chi(exp, theor, error):
 	return np.sum(chi)
 
 
-def cluster_leader(top, traj, trajnum, output_dir):
+def _cluster_leader(top, traj, trajnum, output_dir):
 
 	"""
 	Extract a representative conformer from a given single cluster trajectory.
@@ -464,24 +475,69 @@ def cluster_leader(top, traj, trajnum, output_dir):
 	traj[leader_index].save_pdb(output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
 
 
+def _repr_distmat(array):
+
+	"""
+	Finds a representative member of an observation matrix (e.g. pair-wise chi square matrix).
+
+	:param array: Observation matrix (n,n).
+	:return: An array of boolean values for mapping a representative member.
+	"""
+
+	# Transform an observation matrix into a distance matrix in euclidean space
+
+	distmat = squareform(pdist(array, metric="euclidean"))
+
+	# Sum up values along an axis in the distance matrix
+
+	axis_sum = np.sum(distmat, axis=0)
+
+	# Find the minimum value in the of the axis sum
+
+	axis_sum_min = np.min(axis_sum)
+
+	return axis_sum == axis_sum_min
+
+
+def _pairwise_chi(curves):
+
+	"""
+	Generate a pairwise chi matrix.
+
+	:param curves: A list containing curves to iterate over.
+	:return: An array containing pairwise reduced chi squared values.
+	"""
+
+	# Define the number of curves to iterate over
+
+	number_of_curves = len(curves)
+
+	# Generate an empty array (n,n) for a given n of curves
+
+	pairwise_mat = np.zeros((number_of_curves, number_of_curves))
+
+	# Perform a pairwise reduced chi squared calculation
+
+	for i in range(number_of_curves):
+		for j in range(number_of_curves):
+			pairwise_mat[i:i + 1, j:j + 1] = _chi(curves[i].get_fit(),
+															 curves[j].get_fit(),
+															 curves[i].get_sigma())
+
+	return pairwise_mat
 
 
 
 
-analysis = Analysis()
-
-analysis.initialize_fits()
-
-print(analysis.get_fit_set())
-
-analysis.calc_pairwise_chi()
-
-analysis.cluster_fits2()
-
-analysis.extract_representative_fits()
-
-print(analysis.get_indices_of_clusterids())
 
 
 
-print(analysis.get_repfit())
+
+
+
+
+
+
+
+
+
