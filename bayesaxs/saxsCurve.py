@@ -11,54 +11,89 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-class CurveSAXS(object):
+class Curve(object):
 	
-	def __init__(self, filename):
-		self.filename = filename
-		# FIXME skiprows set to 1. Quick fix for loading experimental and calculated fit scatter data
-		self.dataarray = np.loadtxt(filename, skiprows=1)
+	def __init__(self, path_to_file):
 
-	def get_filename(self):
-		return self.filename
-	
+		# Define path, title and load all curve data
+
+		self._path_to_file = path_to_file
+		self._title = str(self._path_to_file)
+		self._curve_data = np.loadtxt(path_to_file, skiprows=1)
+
+		# Set q, I(q), sigma and fit values
+
+		self._q = self._curve_data[:, :1]
+		self._iq = self._curve_data[:, 1:2]
+		self._sigma = self._curve_data[:, 2:3]
+		self._fit = self._curve_data[:, 3:4]
+
+	def __repr__(self):
+
+		return "Curve: {}".format(self._title)
+
+	def _get_path_to_file(self):
+
+		return self._path_to_file
+
+	def get_title(self):
+
+		""" Returns a title of a curve."""
+
+		return self._title
+
+	def set_title(self, title):
+
+		""" Set a new title for a curve."""
+
+		self._title = str(title)
+
 	def get_dataarray(self):
-		return self.dataarray
+
+		""" Return scattering curve data."""
+
+		return self._curve_data
 		
 	def get_q(self):
-		return self.dataarray[:, :1]
 
-	def get_iq(self, log=False):
+		""" Return q values."""
 
-		# FIXME get the best way to deal with flags
+		return self._q
 
-		if log is True:
-			return np.log10(self.dataarray[:, 1:2])
+	def get_iq(self):
 
-		return self.dataarray[:, 1:2]
-	
+		""" Return I(q) values."""
+
+		return self._iq
+
 	def get_logiq(self):
-		# Possibly redudant
-		return np.log10(self.dataarray[:, 1:2])
+
+		""" Return log10 of I(q) values."""
+
+		return np.log10(self._iq)
 
 	def get_sigma(self):
-		return self.dataarray[:, 2:3]
 
-	def get_fit(self, log=False):
-		# FIXME write a test to check if the 4 column with fit information does exists or not
-		if log is True:
-			return np.log10(self.dataarray[:, 3:4])
+		""" Return error of the curve."""
 
-		return self.dataarray[:, 3:4]
+		return self._sigma
+
+	def get_fit(self):
+
+		""" Return fit values."""
+
+		return self._fit
+
+	def get_logfit(self):
+
+		""" Return log10 of fit values."""
+
+		return np.log10(self._fit)
 
 
 class Trajectory(object):
 
-	def __init__(self, title="unkown"):
-
-		"""
-		Trajectory class initialization.
-
-		"""
+	def __init__(self, title="Unnamed"):
 
 		self._title = str(title).strip()
 		self._pdb = None
@@ -66,55 +101,38 @@ class Trajectory(object):
 		self._cluster_labels = None
 		self._traj_cluster_dir = None
 		self._cluster_leader_dir = None
-		self._collectionPDB = None
+		self._leader_set = None
 
 	def __repr__(self):
 
-		if self._cluster_labels is None:
-			return "{0}".format(self._title)
-		else:
-			return "{0}: Number of clusters {1}".format(self._title, self._cluster_labels.max())
+		return "Trajectory: {}".format(self._title)
 
-	def __str__(self):
+	def get_title(self):
 
-		return self.__class__.__name__ + ' ' + self._title
+		""" Returns a title of a trajectory."""
 
-	def getModel(self):
+		return self._title
 
-		"""Returns self"""
+	def set_title(self, title):
 
-		return self
-
-	def setTitle(self, title):
-
-		"""
-		Set a new title for Trajectory instance.
-
-		:param title: A new title as a string
-		:return:
-		"""
+		""" Set a new title for a trajectory."""
 
 		self._title = str(title)
 
-	def loadTraj(self, pdb_path, traj_path):
+	def load_traj(self, pdb_path, traj_path):
 
-		"""
-		Load a trajectory file.
-
-		:param pdb_path: Path to topology file (.pdb).
-		:param traj_path: Path to a trajectory file (.xtc).
-		"""
+		""" Load a trajectory."""
 
 		self._pdb = mdt.load_pdb(pdb_path)
 		self._traj = mdt.load(traj_path, top=pdb_path)
 
-	def getTraj(self):
+	def get_traj(self):
 
-		"""Return a loaded trajectory."""
+		"""Return loaded trajectory as an instance of a class."""
 
 		return self._traj
 
-	def trajClustering(self):
+	def traj_clustering(self):
 		# FIXME add options to change clustering parameters
 		"""Perform HDBSCAN clustering."""
 
@@ -142,15 +160,17 @@ class Trajectory(object):
 
 		self._cluster_labels = cluster_labels
 
-	def getClusterLabels(self):
 
-		""" Return cluster label for each frame in a trajectory."""
+	def get_cluster_labels(self):
+
+		""" Return cluster labels for each frame in a trajectory."""
 
 		return self._cluster_labels
 
-	def extractTrajClusters(self):
 
-		"""Extract clusters as .xtc trajectories."""
+	def extract_traj_clusters(self):
+
+		"""Extract clusters as .xtc trajectory."""
 
 		# Create a directory where to put cluster trajectories
 
@@ -163,7 +183,8 @@ class Trajectory(object):
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			self._traj[self._cluster_labels == cluster].save_xtc(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
-	def extractClusterRepresentatives(self):
+
+	def extract_cluster_leaders(self):
 
 		"""Extract cluster leaders from cluster trajectories."""
 
@@ -176,80 +197,138 @@ class Trajectory(object):
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
 
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
-			clustering_leader(top=self._pdb,
+			cluster_leader(top=self._pdb,
 							  traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							  trajnum=cluster,
 							  output_dir=self._cluster_leader_dir)
 
 		# Initialize cluster PDBs
 
-		self._collectionPDB = glob.glob("./cluster_leaders/*")
+		self._leader_set = glob.glob("./cluster_leaders/*")
 
-	def loadClusterRepresentatives(self, dir_to_pdbs):
+	def load_cluster_leaders(self, path_to_leaders):
 
-		""" Load cluster leaders"""
+		""" Load cluster leaders."""
 
-		self._collectionPDB = glob.glob(dir_to_pdbs)
+		self._leader_set = glob.glob(path_to_leaders)
 
-	def getClusterRepresentatives(self):
+	def get_cluster_leaders(self):
 
-		""" Returns cluster leaders """
+		""" Returns cluster leaders."""
 
-		return self._collectionPDB
+		return self._leader_set
 
 
-class AnalysisSAXS(object):
+class Analysis(object):
 
-	def __init__(self, trajectory):
-		self.collectionPDB = trajectory.get_collectionPDB()
+	def __init__(self, title="Unnamed"):
 
-	def calcFits(self, expSAXS):
+		self._title = title
+		self._leader_set = None
+		self._fit_set = None
+		self._chi_pairwise_matrix = None
+
+	def __repr__(self):
+
+		return "Analysis: {}".format(self._title)
+
+	def get_title(self):
+
+		""" Returns a title of a analysis."""
+
+		return self._title
+
+	def set_title(self, title):
+
+		""" Set a new title for analysis."""
+
+		self._title = str(title)
+
+	def load_leaders(self, traj):
+
+		""" Load extracted leaders after trajectory clustering."""
+
+		self._leader_set = traj.get_cluster_leaders()
+
+	def calculate_fits(self, exp_curve):
+
+		""" Calculate theoretical scattering curves for each cluster leader using CRYSOL."""
 
 		# Call CRYSOL and calculate theoretical scatter profile based on a set of PDB structures
 
-		for pdb in range(len(self.collectionPDB)):
+		for pdb in range(len(self._leader_set)):
 
 			crysolCommand = "crysol "\
-							+ self.collectionPDB[pdb]\
+							+ self._leader_set[pdb]\
 							+ " "\
-							+ expSAXS.get_filename()\
+							+ exp_curve._get_path_to_file()\
 							+ " "\
 							+ "-p "\
-							+ str(int(re.findall("\d+", self.collectionPDB[pdb])[0]))
+							+ str(int(re.findall("\d+", self._leader_set[pdb])[0]))
 			process = subprocess.Popen(crysolCommand.split(), stdout=subprocess.PIPE)
 			process.communicate()
 
-	def initializeFits(self):
+	def get_crysol_summary(self):
+
+		""" Provide a summary about CRYSOL calculations."""
+
+		pass
+
+	def initialize_fits(self):
+
+		""" Initialize all theoretical scattering curves."""
+
 		# Initialize the directory where calculate fits are
-		self.collectionFits = [CurveSAXS(fit) for fit in glob.glob("./*.fit")]
 
-	def get_collectionFits(self):
-		return self.collectionFits
+		# FIXME use the name of a fit in the tile
+		# FIXME sort the fits by numbers? Needs to be re-ordered possibly
+		# FIXME might be redundant - check better options in the future
 
-	def calcPairwiseChiFits(self):
+		self._path_to_fits = glob.glob("*.fit")
 
-		number_of_fits = len(self.collectionFits)
+		self._fit_set = [Curve(fit) for fit in glob.glob("*.fit")]
 
-		fit_pairwise_matrix = np.zeros((number_of_fits, number_of_fits))
+	def get_path_to_fits(self):
+
+		return self._path_to_fits
+
+	def get_fit_set(self):
+
+		""" Return a set of scattering curves."""
+
+		# FIXME print out proper names of each fit
+
+		return self._fit_set
+
+	def calc_pairwise_chi(self):
+
+		""" Calculate pairwise Chi square values between theoreatical scattering curves."""
+
+		number_of_fits = len(self._fit_set)
+
+		chi_pairwise_matrix = np.zeros((number_of_fits, number_of_fits))
 
 		# FIXME how can one improve this + make sure that it actually does what you want
 		for i in range(number_of_fits):
 			for j in range(number_of_fits):
-				fit_pairwise_matrix[i:i+1, j:j+1] = chi(self.get_collectionFits()[i].get_fit(),
-														self.get_collectionFits()[j].get_fit(),
-														self.get_collectionFits()[i].get_sigma())
+				chi_pairwise_matrix[i:i+1, j:j+1] = chi(self._fit_set[i].get_fit(),
+														self._fit_set[j].get_fit(),
+														self._fit_set[i].get_sigma())
 
-		self.fit_pairwise_matrix = fit_pairwise_matrix
+		self._chi_pairwise_matrix = chi_pairwise_matrix
 
 	def get_fit_pairwise_matrix(self):
-		return self.fit_pairwise_matrix
 
-	def clusterFits(self):
+		""" Return Chi square pairwise matrix between theoretical scattering curves."""
+
+		return self._chi_pairwise_matrix
+
+	def cluster_fits(self):
 
 		# FIXME how to track the index of a fit
 		# FIXME am I changing the values of a .fit_pairwise_matrix ?
 
-		Y = sch.linkage(self.fit_pairwise_matrix)
+		Y = sch.linkage(self._chi_pairwise_matrix)
 		# The fuck this value means
 		cutoff = 0.25 * max(Y[:, 2])
 		Z = sch.dendrogram(Y, orientation='left', color_threshold=cutoff)
@@ -257,24 +336,20 @@ class AnalysisSAXS(object):
 
 		# sort the matrix
 
-		cluster_matrix = self.fit_pairwise_matrix.copy()[index, :]
+		cluster_matrix = self._chi_pairwise_matrix.copy()[index, :]
 		cluster_matrix = cluster_matrix[:, index]
 
-		self.cluster_matrix = cluster_matrix
+		self._cluster_matrix = cluster_matrix
 
 
 	def get_cluster_matrix(self):
-		return self.cluster_matrix
+		return self._cluster_matrix
 
-
-	def _test(self):
-		pass
-
-	def clusterFits2(self):
+	def cluster_fits2(self):
 
 		# Perform clustering
 
-		Y = sch.linkage(self.fit_pairwise_matrix, method='average', metric="euclidean")
+		Y = sch.linkage(self._chi_pairwise_matrix, method='average', metric="euclidean")
 		cutoff = 0.25*max(Y[:, 2])
 
 		# Extract indices for clusters
@@ -308,9 +383,9 @@ class AnalysisSAXS(object):
 
 			for i in range(len(clusterid_set)):
 				for j in range(len(clusterid_set)):
-					clusterid_array[i:i+1, j:j+1] = chi(self.get_collectionFits()[i].get_fit(),
-																self.get_collectionFits()[j].get_fit(),
-																self.get_collectionFits()[i].get_sigma())
+					clusterid_array[i:i+1, j:j+1] = chi(self._fit_set[i].get_fit(),
+																self._fit_set[j].get_fit(),
+																self._fit_set[i].get_sigma())
 
 			condensed_dist_matrix_of_clusterid = pdist(clusterid_array, metric='euclidean')
 
@@ -328,9 +403,6 @@ class AnalysisSAXS(object):
 			repfit_list.append(repfit_of_clusterid[0])
 
 		self.repfit_list = repfit_list
-
-
-
 
 	def get_fit_cluster_indices(self):
 		return self.fit_cluster_indices
@@ -355,7 +427,7 @@ def chi(exp, theor, error):
 	return np.sum(chi)
 
 
-def clustering_leader(top, traj, trajnum, output_dir):
+def cluster_leader(top, traj, trajnum, output_dir):
 
 	"""
 	Extract a representative conformer from a given single cluster trajectory.
@@ -393,108 +465,23 @@ def clustering_leader(top, traj, trajnum, output_dir):
 
 
 
-# # Load trajectory
-#
-# traj = Trajectory("./data/HOIPwtzn.pdb", "./data/tinytraj_fit.xtc")
-#
-#
-#
-# # Trajectory clustering
-#
-# traj.traj_clustering()
-#
-# # Get cluster labels
-#
-# # print(traj.get_cluster_labels())
-# #
-# # plt.plot(traj.get_cluster_labels(), 'x')
-# # plt.show()
-#
-# #
-# # # Extract clusters
-# #
-# # traj.extract_traj_clusters()
-# #
-# # # Extract cluster leaders
-# #
-# # traj.extract_cluster_leaders()
-#
-#
-#
-# # Set cluster leaders
-#
-# traj.set_collectionPDB("./cluster_leaders/*")
-#
-# # Experimental SAXS profile
-#
-# expsaxs = CurveSAXS("./data/HOIP_removedNaN.dat")
-#
-# # Start analysis
-#
-# analysis = AnalysisSAXS(traj)
-#
-# # # Calculate fits for cluster leaders
-# #
-# # analysis.calcFits(expsaxs)
-#
-#
-# # Load fits
-#
-# analysis.initializeFits()
-#
-# # Calculate pairwise chi values
-#
-# analysis.calcPairwiseChiFits()
-#
-# # Plot pairwise chi values
-#
-# # sns.heatmap(analysis.get_fit_pairwise_matrix())
-# # plt.show()
-#
-# # Cluster fits
-#
-# analysis.clusterFits2()
-#
-# # Plot clustered fits
-#
-# # sns.heatmap(analysis.get_cluster_matrix())
-# # plt.show()
-#
-# # Fit cluster indices
-#
-# print(type(analysis.get_fit_cluster_indices()))
-#
-# print(analysis.get_fit_cluster_indices())
-#
-# print(len(analysis.get_collectionFits()))
-#
-# print(analysis.get_indices_of_clusterids())
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[6].get_fit(log=True), 'r')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True), 'r')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[14].get_fit(log=True), 'r')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[15].get_fit(log=True), 'r')
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True), 'b')
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[0].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[5].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[10].get_fit(log=True), 'k')
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[11].get_fit(log=True), 'k')
-# # plt.show()
-#
-# analysis.extract_representative_fits()
-#
-# print(analysis.get_repfit())
-#
-#
-# #
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[1].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[3].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[13].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[12].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[8].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[4].get_fit(log=True))
-# # plt.plot(analysis.get_collectionFits()[0].get_q(), analysis.get_collectionFits()[7].get_fit(log=True))
-# # plt.show()
+
+
+
+analysis = Analysis()
+
+analysis.initialize_fits()
+
+print(analysis.get_fit_set())
+
+analysis.calc_pairwise_chi()
+
+analysis.cluster_fits2()
+
+analysis.extract_representative_fits()
+
+print(analysis.get_indices_of_clusterids())
+
+
+
+print(analysis.get_repfit())
