@@ -92,6 +92,7 @@ class BayesModel(object):
 
 		return self._curves
 
+
 class BayesSampling(BayesModel):
 
 	def __init__(self, curves):

@@ -98,10 +98,6 @@ class Trajectory(object):
 		self._title = str(title).strip()
 		self._pdb = None
 		self._traj = None
-		self._cluster_labels = None
-		self._traj_cluster_dir = None
-		self._cluster_leader_dir = None
-		self._leader_set = None
 
 	def __repr__(self):
 
@@ -132,33 +128,16 @@ class Trajectory(object):
 
 		return self._traj
 
-	def traj_clustering(self):
-		# FIXME add options to change clustering parameters
-		"""Perform HDBSCAN clustering."""
 
-		# Format the trajectory for HDBSCAN input
+class BaseClustering(Trajectory):
 
-		temp = self._traj.xyz
-		frames = temp.shape[0]
-		atoms = temp.shape[1]
-		data = temp.reshape((frames, atoms * 3))
-		data = data.astype("float64")
+	def __init__(self):
 
-		# Delete temporary data
-
-		temp = []
-
-		# Initialize HDBSCAN clusterer
-
-		clusterer = hdbscan.HDBSCAN(min_cluster_size=5, core_dist_n_jobs=-1)
-
-		# Perform clustering
-
-		cluster_labels = clusterer.fit_predict(data)
-
-		# Assign cluster labels to the object
-
-		self._cluster_labels = cluster_labels
+		Trajectory.__init__(self)
+		self._cluster_labels = None
+		self._traj_cluster_dir = None
+		self._cluster_leader_dir = None
+		self._leader_set = None
 
 	def get_cluster_labels(self):
 
@@ -173,7 +152,6 @@ class Trajectory(object):
 		# Create a directory where to put cluster trajectories
 
 		self._traj_cluster_dir = "./traj_clusters/"
-
 		os.mkdir(self._traj_cluster_dir)
 
 		# Extract clusters into .xtc trajectories
@@ -188,7 +166,6 @@ class Trajectory(object):
 		# Create a directory where to put cluster leaders extracted from cluster trajectories
 
 		self._cluster_leader_dir = "./cluster_leaders/"
-
 		os.mkdir(self._cluster_leader_dir)
 
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
@@ -214,6 +191,37 @@ class Trajectory(object):
 		""" Returns cluster leaders."""
 
 		return self._leader_set
+
+
+class HDBSCAN(BaseClustering):
+
+	def __init__(self, min_cluster_size=5, metric="euclidean", core_dist_n_jobs=-1):
+
+		BaseClustering.__init__(self)
+		self._clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
+										metric=metric,
+										core_dist_n_jobs=core_dist_n_jobs)
+
+	def _HDBSCAN_reshape(self, traj):
+
+		"""Reshape XYZ coordinates of a trajectory for clustering."""
+
+		temp = traj.xyz
+		frames = temp.shape[0]
+		atoms = temp.shape[1]
+		reshaped = temp.reshape((frames, atoms * 3))
+		reshaped = reshaped.astype("float64")
+		temp = []
+
+		return reshaped
+
+	def fit_predict(self):
+
+		"""Perform HDBSCAN clustering."""
+
+		# Perform clustering
+		traj_reshaped = self._HDBSCAN_reshape(self._traj)
+		self._cluster_labels = self._clusterer.fit_predict(traj_reshaped)
 
 
 class Analysis(object):
@@ -246,11 +254,11 @@ class Analysis(object):
 
 		self._title = str(title)
 
-	def load_leaders(self, traj):
+	def load_leaders(self, clusterer):
 
 		""" Load extracted leaders after trajectory clustering."""
 
-		self._leader_set = traj.get_cluster_leaders()
+		self._leader_set = clusterer.get_cluster_leaders()
 
 	def calculate_fits(self, exp_curve):
 
@@ -259,7 +267,6 @@ class Analysis(object):
 		# Call CRYSOL and calculate theoretical scatter profile based on a set of PDB structures
 
 		for pdb in range(len(self._leader_set)):
-
 			crysol_command = "crysol "\
 							+ self._leader_set[pdb]\
 							+ " "\
