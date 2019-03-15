@@ -1,6 +1,7 @@
-import re
 import os
+import re
 import glob
+import shutil
 import subprocess
 import numpy as np
 import scipy.cluster.hierarchy as sch
@@ -32,7 +33,7 @@ class Curve(object):
 
 		return "Curve: {}".format(self._title)
 
-	def _get_path_to_file(self):
+	def get_path_to_file(self):
 
 		return self._path_to_file
 
@@ -172,9 +173,9 @@ class BaseClustering(Trajectory):
 
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
 			_cluster_leader(top=self._pdb,
-							  traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
-							  trajnum=cluster,
-							  output_dir=self._cluster_leader_dir)
+							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
+							trajnum=cluster,
+							output_dir=self._cluster_leader_dir)
 
 		# Initialize cluster PDBs
 
@@ -195,14 +196,15 @@ class BaseClustering(Trajectory):
 
 class HDBSCAN(BaseClustering):
 
-	def __init__(self, min_cluster_size=5, metric="euclidean", core_dist_n_jobs=-1):
+	def __init__(self, min_cluster_size=5, metric="euclidean", core_dist_n_jobs=-1, **kwargs):
 
 		BaseClustering.__init__(self)
 		self._clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
 										metric=metric,
-										core_dist_n_jobs=core_dist_n_jobs)
+										core_dist_n_jobs=core_dist_n_jobs, **kwargs)
 
-	def _HDBSCAN_reshape(self, traj):
+	@staticmethod
+	def _HDBSCAN_reshape(traj):
 
 		"""Reshape XYZ coordinates of a trajectory for clustering."""
 
@@ -219,8 +221,7 @@ class HDBSCAN(BaseClustering):
 
 		"""Perform HDBSCAN clustering."""
 
-		# Perform clustering
-		traj_reshaped = self._HDBSCAN_reshape(self._traj)
+		traj_reshaped = HDBSCAN._HDBSCAN_reshape(self._traj)
 		self._cluster_labels = self._clusterer.fit_predict(traj_reshaped)
 
 
@@ -230,7 +231,7 @@ class Analysis(object):
 
 		self._title = title
 		self._leader_set = None
-		self._path_to_fits = None
+		self._fit_dir = None
 		self._fit_set = None
 		self._chi_pairwise_matrix = None
 		self._cluster_matrix = None
@@ -260,22 +261,48 @@ class Analysis(object):
 
 		self._leader_set = clusterer.get_cluster_leaders()
 
-	def calculate_fits(self, exp_curve):
+	@staticmethod
+	def _system_command(command):
 
-		""" Calculate theoretical scattering curves for each cluster leader using CRYSOL."""
+		""" Execute a command line command."""
 
-		# Call CRYSOL and calculate theoretical scatter profile based on a set of PDB structures
+		status = subprocess.call(command)
+		return status
 
-		for pdb in range(len(self._leader_set)):
-			crysol_command = "crysol "\
-							+ self._leader_set[pdb]\
-							+ " "\
-							+ exp_curve._get_path_to_file()\
-							+ " "\
-							+ "-p "\
-							+ str(int(re.findall("\d+", self._leader_set[pdb])[0]))
-			process = subprocess.Popen(crysol_command.split(), stdout=subprocess.PIPE)
-			process.communicate()
+	@staticmethod
+	def _get_leader_index(leader_path):
+
+		""" Extract a leader index out from a file name."""
+
+		return re.findall("\d+", leader_path)[0]
+
+	def simulate_scattering(self, exp_curve):
+
+		""" Simulate scattering for every leader using CRYSOL."""
+
+		# Create a directory to store all CRYSOL output
+
+		self._fit_dir = "./fits/"
+		os.mkdir(self._fit_dir)
+
+		# Calculate the fits and move them to directory
+
+		for leader in self._leader_set:
+
+			# Define a CRYSOL command
+
+			exp_curve_file = exp_curve.get_path_to_file()
+			leader_index = Analysis._get_leader_index(leader)
+			command = (["crysol"] + [leader] + [exp_curve_file] + ["-p"] + ["fit_" + leader_index])
+
+			# Run CRYSOL
+
+			Analysis._system_command(command)
+
+			# Move CRYSOL output to a fits directory
+
+			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)
+			shutil.move("fit_" + leader_index + ".log", self._fit_dir)
 
 	def get_crysol_summary(self):
 
@@ -293,13 +320,11 @@ class Analysis(object):
 		# FIXME sort the fits by numbers? Needs to be re-ordered possibly
 		# FIXME might be redundant - check better options in the future
 
-		self._path_to_fits = glob.glob("*.fit")
-
-		self._fit_set = [Curve(fit) for fit in glob.glob("*.fit")]
+		self._fit_set = [Curve(fit) for fit in glob.glob(self._fit_dir + "*.fit")]
 
 	def get_path_to_fits(self):
 
-		return self._path_to_fits
+		return self._fit_dir
 
 	def get_fit_set(self):
 
@@ -308,22 +333,6 @@ class Analysis(object):
 		# FIXME print out proper names of each fit
 
 		return self._fit_set
-
-	# def calc_pairwise_chi2(self):
-	#
-	# 	""" Calculate pairwise Chi square values between theoreatical scattering curves."""
-	#
-	# 	number_of_fits = len(self._fit_set)
-	#
-	# 	chi_pairwise_matrix = np.zeros((number_of_fits, number_of_fits))
-	#
-	# 	for i in range(number_of_fits):
-	# 		for j in range(number_of_fits):
-	# 			chi_pairwise_matrix[i:i+1, j:j+1] = _chi(self._fit_set[i].get_fit(),
-	# 													self._fit_set[j].get_fit(),
-	# 													self._fit_set[i].get_sigma())
-	#
-	# 	self._chi_pairwise_matrix = chi_pairwise_matrix
 
 	def calc_pairwise_chi(self):
 
