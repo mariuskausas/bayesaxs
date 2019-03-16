@@ -1,5 +1,5 @@
-from saxsCurve import *
-from saxsBayes import *
+from bayesCurve import *
+from bayesModel import *
 import matplotlib.pyplot as plt
 
 def plot_saxsCurve(q, iq, fit=None, plot_fit=False):

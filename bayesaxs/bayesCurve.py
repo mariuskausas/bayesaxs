@@ -8,22 +8,19 @@ import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
 import mdtraj as mdt
 import hdbscan
-import matplotlib.pyplot as plt
-import seaborn as sns
+import bayesChi
 
 
 class Curve(object):
 	
-	def __init__(self, path_to_file):
+	def __init__(self, path_to_file, title="Unnamed"):
 
 		# Define path, title and load all curve data
-
 		self._path_to_file = path_to_file
-		self._title = str(self._path_to_file)
+		self._title = title
 		self._curve_data = np.loadtxt(path_to_file, skiprows=1)
 
 		# Set q, I(q), sigma and fit values
-
 		self._q = self._curve_data[:, :1]
 		self._iq = self._curve_data[:, 1:2]
 		self._sigma = self._curve_data[:, 2:3]
@@ -146,40 +143,60 @@ class BaseClustering(Trajectory):
 
 		return self._cluster_labels
 
-	def extract_traj_clusters(self):
+	def save_traj_clusters(self):
 
-		"""Extract clusters as .xtc trajectory."""
+		"""Save each cluster as .xtc trajectory."""
 
 		# Create a directory where to put cluster trajectories
-
 		self._traj_cluster_dir = "./traj_clusters/"
 		os.mkdir(self._traj_cluster_dir)
 
 		# Extract clusters into .xtc trajectories
-
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
-			self._traj[self._cluster_labels == cluster].save_xtc(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
+			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
-	def extract_cluster_leaders(self):
+	@staticmethod
+	def _extract_leader(top, traj, trajnum, output_dir):
 
-		"""Extract cluster leaders from cluster trajectories."""
+		"""
+		Extract a representative conformer from a given single cluster trajectory.
+
+		"""
+
+		# Load the trajectory
+		traj = mdt.load(traj, top=top, stride=1)
+		nframes = traj.n_frames
+
+		# Calculate pairwise RMSD between frames
+		rmsd_matrix = np.zeros((nframes, nframes))
+		for i in range(nframes):
+			rmsd_matrix[i:i + 1, :] = mdt.rmsd(traj, traj, i, parallel=True)
+
+		# Calculate the sum along each and get leader index on the smallest number
+
+		rmsd_sum = np.sum(rmsd_matrix, axis=1)
+		leader_index = np.where(rmsd_sum == rmsd_sum.min())[0][0]
+
+		# Save the leader as a PDB
+		traj[leader_index].save_pdb(output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
+
+	def save_cluster_leaders(self):
+
+		"""Save each cluster leader as .pdb from cluster trajectories."""
 
 		# Create a directory where to put cluster leaders extracted from cluster trajectories
-
 		self._cluster_leader_dir = "./cluster_leaders/"
 		os.mkdir(self._cluster_leader_dir)
 
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
-
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
-			_cluster_leader(top=self._pdb,
+			BaseClustering._extract_leader(top=self._pdb,
 							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							trajnum=cluster,
 							output_dir=self._cluster_leader_dir)
 
 		# Initialize cluster PDBs
-
-		self._leader_set = glob.glob("./cluster_leaders/*")
+		self._leader_set = glob.glob(self._cluster_leader_dir + "*")
 
 	def load_cluster_leaders(self, path_to_leaders):
 
@@ -204,7 +221,7 @@ class HDBSCAN(BaseClustering):
 										core_dist_n_jobs=core_dist_n_jobs, **kwargs)
 
 	@staticmethod
-	def _HDBSCAN_reshape(traj):
+	def _reshape_XYZ(traj):
 
 		"""Reshape XYZ coordinates of a trajectory for clustering."""
 
@@ -221,7 +238,7 @@ class HDBSCAN(BaseClustering):
 
 		"""Perform HDBSCAN clustering."""
 
-		traj_reshaped = HDBSCAN._HDBSCAN_reshape(self._traj)
+		traj_reshaped = HDBSCAN._reshape_XYZ(self._traj)
 		self._cluster_labels = self._clusterer.fit_predict(traj_reshaped)
 
 
@@ -264,63 +281,48 @@ class Analysis(object):
 	@staticmethod
 	def _system_command(command):
 
-		""" Execute a command line command."""
+		""" Run a command line."""
 
 		status = subprocess.call(command)
 		return status
 
 	@staticmethod
-	def _get_leader_index(leader_path):
+	def _get_str_int(str):
 
-		""" Extract a leader index out from a file name."""
+		""" Extract integer out from a file name."""
 
-		return re.findall("\d+", leader_path)[0]
+		return re.findall("\d+", str)[0]
 
 	def simulate_scattering(self, exp_curve):
 
 		""" Simulate scattering for every leader using CRYSOL."""
 
 		# Create a directory to store all CRYSOL output
-
 		self._fit_dir = "./fits/"
 		os.mkdir(self._fit_dir)
 
 		# Calculate the fits and move them to directory
-
 		for leader in self._leader_set:
 
-			# Define a CRYSOL command
-
+			# Run CRYSOL command
 			exp_curve_file = exp_curve.get_path_to_file()
-			leader_index = Analysis._get_leader_index(leader)
+			leader_index = Analysis._get_str_int(leader)
 			command = (["crysol"] + [leader] + [exp_curve_file] + ["-p"] + ["fit_" + leader_index])
-
-			# Run CRYSOL
-
 			Analysis._system_command(command)
 
 			# Move CRYSOL output to a fits directory
-
 			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)
 			shutil.move("fit_" + leader_index + ".log", self._fit_dir)
+
+		# Initialize fits
+		fits = glob.glob(self._fit_dir + "*.fit")
+		self._fit_set = [Curve(fit, title=Analysis._get_str_int(fit)) for fit in fits]
 
 	def get_crysol_summary(self):
 
 		""" Provide a summary about CRYSOL calculations."""
 
 		pass
-
-	def initialize_fits(self):
-
-		""" Initialize all theoretical scattering curves."""
-
-		# Initialize the directory where calculate fits are
-
-		# FIXME use the name of a fit in the tile
-		# FIXME sort the fits by numbers? Needs to be re-ordered possibly
-		# FIXME might be redundant - check better options in the future
-
-		self._fit_set = [Curve(fit) for fit in glob.glob(self._fit_dir + "*.fit")]
 
 	def get_path_to_fits(self):
 
@@ -330,13 +332,13 @@ class Analysis(object):
 
 		""" Return a set of scattering curves."""
 
-		# FIXME print out proper names of each fit
-
 		return self._fit_set
 
 	def calc_pairwise_chi(self):
 
-		self._chi_pairwise_matrix = _pairwise_chi(self._fit_set)
+		""" Calculate a pairwise reduced chi square matrix for a set of fits."""
+
+		self._chi_pairwise_matrix = bayesChi.pairwise_chi(self._fit_set)
 
 	def get_fit_pairwise_matrix(self):
 
@@ -347,22 +349,18 @@ class Analysis(object):
 	def cluster_fits(self):
 
 		# Perform clustering
-
 		Y = sch.linkage(self._chi_pairwise_matrix, method='average', metric="euclidean")
 		cutoff = 0.25*max(Y[:, 2])
 
 		# Extract indices for clusters
-
 		indx = sch.fcluster(Y, cutoff, criterion='distance')
 
 		self._fit_cluster_indices = indx
 
 		# Generate a list of cluster fit indices
-
 		clusterids = np.arange(1, self._fit_cluster_indices.max() + 1, 1)
 
 		# Populate a list with cluster fit indices for each cluster index
-
 		indices_of_clusterids = []
 
 		for clusterid in clusterids:
@@ -383,7 +381,6 @@ class Analysis(object):
 		index = Z['leaves']
 
 		# sort the matrix
-
 		cluster_matrix = self._chi_pairwise_matrix.copy()[index, :]
 		cluster_matrix = cluster_matrix[:, index]
 
@@ -393,30 +390,43 @@ class Analysis(object):
 
 		return self._cluster_matrix
 
+	@staticmethod
+	def _repr_distmat(array):
+
+		"""
+		Finds a representative member of an observation matrix (e.g. pair-wise chi square matrix).
+
+		:param array: Observation matrix (n,n).
+		:return: An array of boolean values for mapping a representative member.
+		"""
+
+		# Transform an observation matrix into a distance matrix in euclidean space
+		distmat = squareform(pdist(array, metric="euclidean"))
+
+		# Find the minimum value in the of the axis sum
+		axis_sum = np.sum(distmat, axis=0)
+		axis_sum_min = np.min(axis_sum)
+
+		return axis_sum == axis_sum_min
+
 	def extract_representative_fits(self):
 
 		# Empty list for representative fits
-
 		repfit_list = []
 
 		# For each cluster set find a representative member and append to a list
-
 		for clusterid_set in self._indices_of_clusterids:
 
 			# Extract appropriate clusterid curves for the whole fit set
-
 			clusterid_curves = [self._fit_set[i] for i in clusterid_set]
 
 			# Calculate a pair-wise chi matrix
-
-			pairwise_chi = _pairwise_chi(clusterid_curves)
+			pairwise_chi = bayesChi.pairwise_chi(clusterid_curves)
 
 			# Extract a representative member (convert a list to an array, pass a boolean np array for indexing)
-
-			repfit_of_clusterid = np.array(clusterid_set)[_repr_distmat(pairwise_chi)][0]
+			repfit_of_clusterid = np.array(clusterid_set)[Analysis._repr_distmat(pairwise_chi)][0]
 
 			# Append a representative member to a list
-
 			repfit_list.append(repfit_of_clusterid)
 
 		self._repfit_list = [self._fit_set[i] for i in repfit_list]
@@ -432,128 +442,3 @@ class Analysis(object):
 	def get_repfit(self):
 
 		return self._repfit_list
-
-
-# Utilities
-
-
-def _chi(exp, theor, error):
-
-	"""
-	Calculate reduced chi squared.
-
-	"""
-
-	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
-	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
-
-	nominator = np.sum(np.power(np.divide((exp - theor), error, out=np.zeros_like(exp-theor), where=error != 0), 2))
-
-	chi = np.divide(nominator, (exp.size - 1))
-
-	return np.sum(chi)
-
-
-def _cluster_leader(top, traj, trajnum, output_dir):
-
-	"""
-	Extract a representative conformer from a given single cluster trajectory.
-
-	"""
-
-	# Load the trajectory
-
-	traj = mdt.load(traj, top=top, stride=1)
-
-	# Number of frames
-
-	nframes = traj.n_frames
-
-	# Create a RMSD distance matrix
-
-	rmsd_matrix = np.zeros((nframes, nframes))
-
-	# Calculate pairwise RMSD between each of the frame
-
-	for i in range(nframes):
-		rmsd_matrix[i:i + 1, :] = mdt.rmsd(traj, traj, i, parallel=True)
-
-	# Calculate the sum along each row
-
-	rmsd_sum = np.sum(rmsd_matrix, axis=1)
-
-	# Calculate the leader index based on the smallest number
-
-	leader_index = np.where(rmsd_sum == rmsd_sum.min())[0][0]
-
-	# Save the leader as a PDB
-
-	traj[leader_index].save_pdb(output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
-
-
-def _repr_distmat(array):
-
-	"""
-	Finds a representative member of an observation matrix (e.g. pair-wise chi square matrix).
-
-	:param array: Observation matrix (n,n).
-	:return: An array of boolean values for mapping a representative member.
-	"""
-
-	# Transform an observation matrix into a distance matrix in euclidean space
-
-	distmat = squareform(pdist(array, metric="euclidean"))
-
-	# Sum up values along an axis in the distance matrix
-
-	axis_sum = np.sum(distmat, axis=0)
-
-	# Find the minimum value in the of the axis sum
-
-	axis_sum_min = np.min(axis_sum)
-
-	return axis_sum == axis_sum_min
-
-
-def _pairwise_chi(curves):
-
-	"""
-	Generate a pairwise chi matrix.
-
-	:param curves: A list containing curves to iterate over.
-	:return: An array containing pairwise reduced chi squared values.
-	"""
-
-	# Define the number of curves to iterate over
-
-	number_of_curves = len(curves)
-
-	# Generate an empty array (n,n) for a given n of curves
-
-	pairwise_mat = np.zeros((number_of_curves, number_of_curves))
-
-	# Perform a pairwise reduced chi squared calculation
-
-	for i in range(number_of_curves):
-		for j in range(number_of_curves):
-			pairwise_mat[i:i + 1, j:j + 1] = _chi(curves[i].get_fit(),
-															 curves[j].get_fit(),
-															 curves[i].get_sigma())
-
-	return pairwise_mat
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,51 +1,7 @@
 from itertools import combinations
 import numpy as np
 import pymc3 as pm
-import theano as tt
-
-from saxsCurve import *
-
-
-# Utilities
-
-
-def _chi_np(exp, theor, sigma):
-
-	"""
-	Calculate reduced chi squared (numpy method).
-
-	"""
-
-	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
-	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
-
-	nominator = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp-theor), where=sigma != 0), 2))
-	chi = np.divide(nominator, (exp.size - 1))
-
-	return np.sum(chi)
-
-
-def _chi2_tt(exp, theor, sigma):
-
-	"""
-	Calculate chi squared (theano method).
-
-	"""
-
-	chi_value = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
-	return tt.tensor.sum(chi_value)
-
-
-def _chi2red_tt(exp, theor, sigma):
-
-	"""
-	Calculate reduced chi squared (theano method).
-
-	"""
-
-	chi_value = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2)) / (
-				exp.size - 1)
-	return tt.tensor.sum(chi_value)
+import bayesChi
 
 
 class BayesModel(object):
@@ -111,7 +67,7 @@ class BayesSampling(BayesModel):
 			self._weighted_curve = BayesSampling._composite(curves=self._curves,
 															weights=self._dirichlet,
 															shape=self._shape)
-			self._chi2 = _chi2_tt(exp=self._exp_curve[5:],
+			self._chi2 = bayesChi.chi2_tt(exp=self._exp_curve[5:],
 								theor=self._weighted_curve[5:],
 								sigma=self._exp_sigma[5:])
 
@@ -163,7 +119,7 @@ class BayesSampling(BayesModel):
 
 		# Calculate the weighted curve chi2red
 		final_weighted_curve = np.sum([(self._curves[i].get_fit() * mu[i]) for i in range(self._shape)], axis=0)
-		final_chi2 = _chi_np(exp=self._exp_curve, theor=final_weighted_curve, sigma=self._exp_sigma)
+		final_chi2 = bayesChi.chi_np(exp=self._exp_curve, theor=final_weighted_curve, sigma=self._exp_sigma)
 
 		# Print the summary output
 		BayesSampling._summary_output(self, mu=mu, sd=sd, final_chi2=final_chi2)
