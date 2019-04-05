@@ -33,7 +33,6 @@ class Base(object):
 		""" Set path for current working directory."""
 		self._cwdir = os.path.normpath(os.path.join(os.getcwd(), path, ''))
 
-	@staticmethod
 	def _mkdir(self, dir_name):
 		""" Create a directory."""
 		if os.path.isdir(dir_name):
