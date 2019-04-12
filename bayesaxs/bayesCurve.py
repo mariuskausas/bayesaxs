@@ -17,23 +17,24 @@ class Base(object):
 		self._title = str(title).strip()
 		self._cwdir = os.path.join(os.getcwd(), '')
 
-	def get_title(self):
-		""" Returns a title of a curve."""
-		return self._title
-
 	def set_title(self, title):
 		""" Set a new title for a curve."""
 		self._title = str(title)
 
-	def get_cwdir(self):
-		""" Get absolute path for current working directory."""
-		return self._cwdir
+	def get_title(self):
+		""" Returns a title of a curve."""
+		return self._title
 
 	def set_cwdir(self, path):
 		""" Set path for current working directory."""
 		self._cwdir = os.path.normpath(os.path.join(os.getcwd(), path, ''))
 
-	def _mkdir(self, dir_name):
+	def get_cwdir(self):
+		""" Get absolute path for current working directory."""
+		return self._cwdir
+
+	@staticmethod
+	def _mkdir(dir_name):
 		""" Create a directory."""
 		if os.path.isdir(dir_name):
 			print("Such folder already exists: {name}".format(name=dir_name))
@@ -98,7 +99,7 @@ class Trajectory(Base):
 		self._traj = None
 
 	def __repr__(self):
-		return "Trajectory: {}".format(self._title)
+		return "Trajectory: {}".format(self._traj)
 
 	def load_traj(self, pdb_path, traj_path):
 		""" Load a trajectory."""
@@ -120,26 +121,18 @@ class BaseCluster(Trajectory):
 		self._cluster_leader_dir = None
 		self._leader_set = None
 
-	def get_cwdir(self):
-		""" Get absolute path for current working directory."""
-		return self._cwdir
-
-	def set_cwdir(self, path):
-		""" Set path for current working directory."""
-		self._cwdir = os.path.normpath(os.path.join(os.getcwd(), path, ''))
-
-	def get_cluster_labels(self):
-		""" Return cluster labels for each frame in a trajectory."""
-		return self._cluster_labels
-
 	def save_traj_clusters(self, folder_name):
 		"""Save each cluster as .xtc trajectory."""
 		# Create a directory where to put cluster trajectories
 		self._traj_cluster_dir = os.path.join(self._cwdir, folder_name, '')
-		Base._mkdir(self, self._traj_cluster_dir)
+		Base._mkdir(self._traj_cluster_dir)
 		#  Extract clusters into .xtc trajectories
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
+
+	def get_cluster_labels(self):
+		""" Return cluster labels for each frame in a trajectory."""
+		return self._cluster_labels
 
 	@staticmethod
 	def _extract_leader(top, traj, trajnum, output_dir):
@@ -151,18 +144,18 @@ class BaseCluster(Trajectory):
 		# Calculate pairwise RMSD between frames
 		rmsd_matrix = np.zeros((nframes, nframes))
 		for i in range(nframes):
-			rmsd_matrix[i:i + 1, :] = mdt.rmsd(traj, traj, i, parallel=True)
+			rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj, reference=traj, frame=i, parallel=True)
 		# Calculate the sum along each and get leader index on the smallest number
 		rmsd_sum = np.sum(rmsd_matrix, axis=1)
 		leader_index = np.where(rmsd_sum == rmsd_sum.min())[0][0]
 		# Save the leader as a PDB
-		traj[leader_index].save_pdb(output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
+		traj[leader_index].save_pdb(filename=output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
 
 	def save_cluster_leaders(self, folder_name):
 		"""Save each cluster leader as .pdb from cluster trajectories."""
 		# Create a directory where to put cluster leaders extracted from cluster trajectories
 		self._cluster_leader_dir = os.path.join(self._cwdir, folder_name, '')
-		Base._mkdir(self, self._cluster_leader_dir)
+		Base._mkdir(self._cluster_leader_dir)
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
 			BaseCluster._extract_leader(top=self._pdb,
@@ -170,7 +163,7 @@ class BaseCluster(Trajectory):
 							trajnum=cluster,
 							output_dir=self._cluster_leader_dir)
 		# Initialize cluster PDBs
-		BaseCluster.load_cluster_leaders(self, self._cluster_leader_dir + "*.pdb")
+		BaseCluster.load_cluster_leaders(self, path_to_leaders=self._cluster_leader_dir + "*.pdb")
 
 	def load_cluster_leaders(self, path_to_leaders):
 		""" Load cluster leaders."""
@@ -178,7 +171,7 @@ class BaseCluster(Trajectory):
 		self._leader_set = glob.glob(path_to_leaders)
 
 	def get_cluster_leaders(self):
-		""" Returns cluster leaders."""
+		""" Get cluster leaders."""
 		return self._leader_set
 
 
@@ -203,21 +196,23 @@ class HDBSCAN(BaseCluster):
 
 	def fit_predict(self):
 		"""Perform HDBSCAN clustering."""
-		traj_reshaped = HDBSCAN._reshape_XYZ(self._traj)
-		self._cluster_labels = self._clusterer.fit_predict(traj_reshaped)
+		traj_reshaped = HDBSCAN._reshape_XYZ(traj=self._traj)
+		self._cluster_labels = self._clusterer.fit_predict(X=traj_reshaped)
 
 
-class Analysis(Base):
+class Scatter(Base):
 
 	def __init__(self):
 		Base.__init__(self)
 		self._leader_set = None
 		self._fit_dir = None
 		self._fit_set = None
-		self._chi_pairwise_matrix = None
-		self._cluster_matrix = None
+		self._pairwise_chi_matrix = None
+		self._linkage_matrix = None
+		self._linkage_dendogram = None
 		self._fit_cluster_indices = None
 		self._indices_of_clusterids = None
+		self._sorted_pairwise_chi_matrix = None
 		self._repfit_list = None
 
 	def __repr__(self):
@@ -237,69 +232,60 @@ class Analysis(Base):
 		status = subprocess.call(command)
 		return status
 
-	@staticmethod
-	def _get_str_int(s):
-		""" Extract integer out from a file name."""
-		return re.findall("\d+", os.path.basename(s))[0]
-
-	def simulate_scattering(self, exp_curve, folder_name):
+	def calc_scattering(self, exp_curve, folder_name):
 		""" Simulate scattering for every leader using CRYSOL."""
 		# Create a directory to store all CRYSOL output
 		self._fit_dir = os.path.join(self._cwdir, folder_name, '')
-		Base._mkdir(self, self._fit_dir)
+		Base._mkdir(self._fit_dir)
 		# Calculate the fits and move them to directory
 		for leader in self._leader_set:
 			# Run CRYSOL command
 			exp_curve_file = exp_curve.get_path_to_file()
-			leader_index = Analysis._get_str_int(leader)
-			command = (["crysol"] + [leader] + [exp_curve_file] + ["-p"] + ["fit_" + leader_index])
-			Analysis._system_command(command)
+			leader_index = Scatter._get_str_int(leader)
+			call_crysol = (["crysol"] + [leader] + [exp_curve_file] + ["-p"] + ["fit_" + leader_index])
+			Scatter._system_command(call_crysol)
 			# Move CRYSOL output to a fits directory
 			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)
 			shutil.move("fit_" + leader_index + ".log", self._fit_dir)
 		# Move CRYSOL summary to a fits directory
 		shutil.move("crysol_summary.txt", self._fit_dir)
 		# Initialize fits
-		Analysis.load_fits(self, self._fit_dir + "*.fit")
+		Scatter.load_fits(self, self._fit_dir + "*.fit")
+
+	@staticmethod
+	def _get_str_int(s):
+		""" Extract integer out from a file name."""
+		return re.findall("\d+", os.path.basename(s))[0]
 
 	def load_fits(self, path_to_fits):
 		""" Load fit files .fit"""
 		fits = glob.glob(path_to_fits)
-		self._fit_set = [Curve(fit, title=Analysis._get_str_int(fit)) for fit in fits]
+		self._fit_set = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
 
 	def get_crysol_summary(self):
 		""" Provide a summary about CRYSOL calculations."""
-		pass
+		raise NotImplementedError
 
 	def get_path_to_fits(self):
 		""" Get path to fits location."""
 		return self._fit_dir
 
 	def get_fit_set(self):
-		""" Return a set of scattering curves."""
+		""" Get a set of scattering curves."""
 		return self._fit_set
 
-	def calc_pairwise_chi(self):
+	def calc_pairwise_chi_matrix(self):
 		""" Calculate a pairwise reduced chi square matrix for a set of fits."""
-		self._chi_pairwise_matrix = bayesChi.pairwise_chi(self._fit_set)
+		self._pairwise_chi_matrix = bayesChi.pairwise_chi(self._fit_set)
 
-	def get_fit_pairwise_matrix(self):
-		""" Return Chi square pairwise matrix between theoretical scattering curves."""
-		return self._chi_pairwise_matrix
-
-	def cluster_fits(self):
-		""" Perform hierarchical clustering on pairwise reduced chi squared matrix"""
-		# Initialize linkage clustering
-		Y = sch.linkage(self._chi_pairwise_matrix, method='average', metric="euclidean")
-		cutoff = 0.25*max(Y[:, 2])
-		self._fit_cluster_indices, self._indices_of_clusterids = Analysis._get_clusterids()
-		self._cluster_matrix = Analysis._sort_cluster_chi_pairwise_matrix_(chi_pairwise_matrix=self._chi_pairwise_matrix,
-																		linkage_matrix=Y,
-																		cutoff=cutoff)
+	def get_pairwise_chi_matrix(self):
+		""" Get a pairwise chi square matrix between theoretical scattering curves."""
+		return self._pairwise_chi_matrix
 
 	@staticmethod
 	def _get_clusterids(linkage_matrix, cutoff):
-		indx = sch.fcluster(linkage_matrix, cutoff, criterion='distance')
+		""" Get ids for each scattering cluster."""
+		indx = sch.fcluster(linkage_matrix, t=cutoff, criterion='distance')
 		# Generate a list of cluster fit indices
 		clusterids = np.arange(1, indx.max() + 1, 1)
 		# Populate a list with cluster fit indices for each cluster index
@@ -309,16 +295,49 @@ class Analysis(Base):
 			indices_of_clusterids.append(set_of_indices)
 		return indx, indices_of_clusterids
 
-	@staticmethod
-	def _sort_cluster_chi_pairwise_matrix_(chi_pairwise_matrix, linkage_matrix, cutoff):
-		Z = sch.dendrogram(linkage_matrix, orientation='left', color_threshold=cutoff)
-		index = Z['leaves']
-		cluster_matrix = chi_pairwise_matrix.copy()[index, :]
-		cluster_matrix = cluster_matrix[:, index]
-		return cluster_matrix
+	def _sort_pairwise_chi_matrix_(self, pairwise_chi_matrix, linkage_matrix, cutoff):
+		""" Sort a pairwise reduced chi squared matrix."""
+		# Calculate a dendogram based on a linkage matrix
+		self._linkage_dendogram = sch.dendrogram(linkage_matrix, orientation='left', color_threshold=cutoff)
+		index = self._linkage_dendogram['leaves']
+		# Sort by leaves
+		sorted_matrix = pairwise_chi_matrix.copy()[index, :]
+		sorted_matrix = sorted_matrix[:, index]
+		return sorted_matrix
 
-	def get_cluster_matrix(self):
-		return self._cluster_matrix
+	def get_linkage_dendogram(self):
+		""" Get linkage dendogram."""
+		return self._linkage_dendogram
+
+	def cluster_fits(self, cutoff_value):
+		""" Perform hierarchical clustering on pairwise reduced chi squared matrix."""
+		# Perform linkage clustering
+		self._linkage_matrix = sch.linkage(self._pairwise_chi_matrix, method='average', metric="euclidean")
+		# Define a cut off value in a range [0,1]
+		cutoff = cutoff_value * max(self._linkage_matrix[:, 2])
+		# Get cluster ids from clustering
+		self._fit_cluster_indices, self._indices_of_clusterids = Scatter._get_clusterids(linkage_matrix=self._linkage_matrix,
+																						cutoff=cutoff)
+		# Sort a cluster
+		self._sorted_pairwise_chi_matrix = Scatter._sort_pairwise_chi_matrix_(self, pairwise_chi_matrix=self._pairwise_chi_matrix,
+																		linkage_matrix=self._linkage_matrix,
+																		cutoff=cutoff)
+
+	def get_linkage_matrix(self):
+		""" Get linkage matrix after clustering."""
+		return self._linkage_matrix
+
+	def get_fit_cluster_indices(self):
+		""" Get cluster indices of clustered fits."""
+		return self._fit_cluster_indices
+
+	def get_indices_of_clusterids(self):
+		""" Get position indices of each clustered fits."""
+		return self._indices_of_clusterids
+
+	def get_sorted_pairwise_chi_matrix(self):
+		""" Get a clustered pairwise chi matrix."""
+		return self._sorted_pairwise_chi_matrix
 
 	@staticmethod
 	def _repr_distmat(array):
@@ -335,8 +354,8 @@ class Analysis(Base):
 		axis_sum_min = np.min(axis_sum)
 		return axis_sum == axis_sum_min
 
-	def extract_representative_fits(self):
-		""" Description."""
+	def calc_representative_fits(self):
+		""" Calculate representative fit form clustered fits."""
 		# Empty list for representative fits
 		repfit_list = []
 		# For each cluster set find a representative member and append to a list
@@ -346,20 +365,11 @@ class Analysis(Base):
 			# Calculate a pair-wise chi matrix
 			pairwise_chi = bayesChi.pairwise_chi(clusterid_curves)
 			# Extract a representative member (convert a list to an array, pass a boolean np array for indexing)
-			repfit_of_clusterid = np.array(clusterid_set)[Analysis._repr_distmat(pairwise_chi)][0]
+			repfit_of_clusterid = np.array(clusterid_set)[Scatter._repr_distmat(pairwise_chi)][0]
 			# Append a representative member to a list
 			repfit_list.append(repfit_of_clusterid)
 		self._repfit_list = [self._fit_set[i] for i in repfit_list]
 
-	def get_fit_cluster_indices(self):
-		return self._fit_cluster_indices
-
-	def get_indices_of_clusterids(self):
-		return self._indices_of_clusterids
-
-	def get_repfit(self):
+	def get_representative_fits(self):
+		""" Get a list of representative fits."""
 		return self._repfit_list
-
-# Utilities
-
-

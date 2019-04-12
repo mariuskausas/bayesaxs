@@ -1,12 +1,14 @@
 from itertools import combinations
 import numpy as np
 import pymc3 as pm
+from bayesCurve import Base
 import bayesChi
 
 
-class BayesModel(object):
+class BayesModel(Base):
 
 	def __init__(self, curves, title="BayesModel"):
+		Base.__init__(self, title=title)
 		self._title = title
 		self._curves = curves
 		self._shape = len(curves)
@@ -21,14 +23,6 @@ class BayesModel(object):
 
 	def __repr__(self):
 		return "BayesModel: {}".format(self._title)
-
-	def get_title(self):
-		""" Returns a title of a Bayesian model."""
-		return self._title
-
-	def set_title(self, title):
-		""" Set a new title for Bayesian model."""
-		self._title = str(title)
 
 	def load_curves(self, curves):
 		""" Load a set of representative curves."""
