@@ -47,10 +47,8 @@ class Curve(Base):
 	
 	def __init__(self, path_to_file, title="Unnamed"):
 		Base.__init__(self, title=title)
-		# Define path and load curve data
 		self._path_to_file = path_to_file
 		self._curve_data = np.loadtxt(path_to_file, skiprows=1)
-		# Set q, I(q), sigma and fit values
 		self._q = self._curve_data[:, :1]
 		self._iq = self._curve_data[:, 1:2]
 		self._sigma = self._curve_data[:, 2:3]
