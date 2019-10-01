@@ -8,7 +8,7 @@ Python implementation of BSS-SAXS
 
 ### Copyright
 
-Copyright (c) 2018, Marius Kausas
+Copyright (c) 2019, Marius Kausas
 
 
 #### Acknowledgements
