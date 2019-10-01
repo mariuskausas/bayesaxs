@@ -50,16 +50,20 @@ analysis = Scatter()
 # analysis.get_crysol_summary()
 analysis.load_fits("./fits/*.fit")
 print(analysis.get_fit_set())
-# analysis.calc_pairwise_chi_matrix()
-# # sns.heatmap(analysis.get_fit_pairwise_matrix())
-# # plt.show()
+analysis.calc_pairwise_chi_matrix()
+print(analysis.get_pairwise_chi_matrix())
+
 #
-# analysis.cluster_fits(0)
+analysis.cluster_fits(0.25)
 # # print(analysis.get_fit_cluster_indices())
 # # print(analysis.get_indices_of_clusterids())
-# # print(analysis.get_cluster_matrix())
+print(analysis.get_sorted_pairwise_chi_matrix())
+
 # print(analysis.get_linkage_matrix().max())
 # # plt.show()
 
-plot_fit(analysis.get_fit_set()[10])
+# print(analysis.get_fit_set()[10].get_q())
+
+#plot_single_scatter(analysis.get_fit_set()[0])
+#plot_multi_scatters(analysis.get_fit_set())
 

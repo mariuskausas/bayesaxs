@@ -1,74 +1,71 @@
 from bayesCurve import *
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
-def plot_fit(curve):
+def _get_curve_data(curve):
 
-	q = curve.get_q()
-	exp = curve.get_iq()
-	fit = curve.get_fit()
-	name = curve
+	q = curve.get_q().squeeze()
+	exp = curve.get_iq().squeeze()
+	sigma = curve.get_sigma().squeeze()
+	fit = curve.get_fit().squeeze()
 
-	fig = plt.figure(figsize=[6, 6])
+	return q, exp, sigma, fit
+
+
+def plot_single_scatter(curve):
+
+	fs = 22
+	fig = plt.figure(figsize=[6, 4])
 	ax = fig.add_subplot(111)
 
-	ax.plot(q, np.log10(exp), label="Exp", color="tab:grey", linewidth=2)
-	ax.plot(q, np.log10(fit), label=name, color="tab:blue", linewidth=2)
-	ax.set_xlabel("$q$")
-	ax.set_ylabel("$log_{10}(I_{q})$")
-	ax.legend(loc="upper right")
-	ax.set_title("Theoretical fit")
+	q, exp, sigma, fit = _get_curve_data(curve)
+	ax.plot(q, exp, label="Exp", color="k", linewidth=2, zorder=1)
+	ax.fill_between(q, exp-sigma, exp+sigma, color='black', alpha=0.2, label='Error', zorder=2)
+	ax.plot(q, fit, label=curve.get_title(), linewidth=2, zorder=3)
+	ax.semilogy(nonposy="mask")
+
+	ax.tick_params(labelsize=12)
+
+	ax.set_xlabel("$q$", fontsize=fs)
+	ax.set_ylabel("$I(q)$", fontsize=fs)
+
+	ax.grid()
+
+	ax.legend(ncol=2, loc="upper right", fontsize=10)
 
 	plt.show()
-	plt.close()
+	return
 
 
-# analysis = Scatter()
-#
-# analysis.initialize_fits()
-#
-# analysis.calc_pairwise_chi()
-#
-# analysis.cluster_fits()
-#
-# analysis.extract_representative_fits()
-#
-#
-# colors = ["tab:blue", "tab:red", "tab:orange", "tab:brown", "tab:green", "tab:grey", "tab:olive"]
-# curves = analysis.get_fit_set()
-# curves1 = analysis.get_repfit()
-#
-#
-# plt.figure(figsize=(10, 12.5))
-#
-# plt.subplot(211)
-#
-# for indx, cluster in enumerate(analysis.get_indices_of_clusterids()):
-# 	for curve in cluster:
-# 		plt.plot(curves[curve].get_q(),
-# 				 curves[curve].get_logfit(),
-# 				 label=str(curves[curve].get_title()),
-# 				 color=colors[indx],
-# 				 linewidth=2)
-# plt.xlim(0, 0.5)
-# plt.ylim(-4, -0.8)
-# plt.ylabel('$log_{10}$ $(I_{q})$', fontsize=20)
-# plt.tick_params(labelsize=20)
-# plt.legend()
-#
-# plt.subplot(212)
-#
-# for indx, curve in enumerate(curves1):
-# 		plt.plot(curves1[indx].get_q(),
-# 				 curves1[indx].get_logfit(),
-# 				 label=str(curves1[indx].get_title()),
-# 				 color=colors[indx],
-# 				 linewidth=2)
-# plt.xlim(0, 0.5)
-# plt.ylim(-4, -0.8)
-# plt.xlabel('$q$ $(\AA^{-1})$', fontsize=20)
-# plt.ylabel('$log_{10}$ $(I_{q})$', fontsize=20)
-# plt.tick_params(labelsize=20)
-# plt.legend()
-# plt.savefig("selected_clusters.png", dpi=300)
-# plt.show()
+def plot_multi_scatters(curves):
+
+	fs = 22
+	fig = plt.figure(figsize=[6, 4])
+	ax = fig.add_subplot(111)
+
+	for curve in curves:
+
+		q, exp, sigma, fit = _get_curve_data(curve)
+		ax.plot(q, fit, label=curve.get_title(), linewidth=2, zorder=3)
+
+	ax.semilogy(nonposy="mask")
+
+	ax.tick_params(labelsize=12)
+
+	ax.set_xlabel("$q$", fontsize=fs)
+	ax.set_ylabel("$I(q)$", fontsize=fs)
+
+	ax.grid()
+
+	ax.legend(ncol=2, loc="upper right", fontsize=10)
+
+	plt.show()
+	return
+
+
+def plot_heatmap(heatmap):
+
+	sns.heatmap(heatmap)
+	plt.show()
+	return
