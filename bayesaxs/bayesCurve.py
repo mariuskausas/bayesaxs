@@ -104,8 +104,12 @@ class Trajectory(Base):
 		self._pdb = mdt.load_pdb(pdb_path)
 		self._traj = mdt.load(traj_path, top=pdb_path)
 
+	def get_pdb(self):
+		""" Return loaded .pdb topology."""
+		return self._pdb
+
 	def get_traj(self):
-		"""Return loaded trajectory as an instance of a class."""
+		"""Return loaded trajectory."""
 		return self._traj
 
 
@@ -173,6 +177,9 @@ class BaseCluster(Trajectory):
 		return self._leader_set
 
 
+
+
+
 class HDBSCAN(BaseCluster):
 
 	def __init__(self, min_cluster_size=5, metric="euclidean", core_dist_n_jobs=-1, **kwargs):
@@ -181,21 +188,10 @@ class HDBSCAN(BaseCluster):
 										metric=metric,
 										core_dist_n_jobs=core_dist_n_jobs, **kwargs)
 
-	@staticmethod
-	def _reshape_XYZ(traj):
-		"""Reshape XYZ coordinates of a trajectory for clustering."""
-		temp = traj.xyz
-		frames = temp.shape[0]
-		atoms = temp.shape[1]
-		reshaped = temp.reshape((frames, atoms * 3))
-		reshaped = reshaped.astype("float64")
-		temp = []
-		return reshaped
-
-	def fit_predict(self):
+	def fit_predict(self, cluster_metric="xyz"):
 		"""Perform HDBSCAN clustering."""
-		traj_reshaped = HDBSCAN._reshape_XYZ(traj=self._traj)
-		self._cluster_labels = self._clusterer.fit_predict(X=traj_reshaped)
+		cluster_input = ClusterMetrics.get_cluster_metrics()[cluster_metric](traj=self._traj)
+		self._cluster_labels = self._clusterer.fit_predict(cluster_input)
 
 
 class Scatter(Base):
