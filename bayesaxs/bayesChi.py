@@ -1,7 +1,3 @@
-import numpy as np
-import theano as tt
-
-
 def chi_np(exp, theor, sigma):
 	""" Calculate reduced chi squared (numpy method)."""
 	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the

@@ -7,6 +7,7 @@ from itertools import combinations
 import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
+import theano as tt
 import mdtraj as mdt
 import hdbscan
 import bayesChi
