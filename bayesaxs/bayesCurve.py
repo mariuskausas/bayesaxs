@@ -61,10 +61,10 @@ class Curve(Base):
 	def get_path_to_file(self):
 		return self._path_to_file
 
-	def get_dataarray(self):
+	def get_curve_values(self):
 		""" Return scattering curve data."""
 		return self._curve_data
-		
+
 	def get_q(self):
 		""" Return q values."""
 		return self._q
@@ -118,11 +118,15 @@ class BaseCluster(Trajectory):
 
 	def __init__(self):
 		Trajectory.__init__(self)
-		self._cluster_labels = None
 		self._cwdir = os.path.join(os.getcwd(), '')
+		self._cluster_labels = None
 		self._traj_cluster_dir = None
 		self._cluster_leader_dir = None
 		self._leader_set = None
+
+	def get_cluster_labels(self):
+		""" Return cluster labels for each frame in a trajectory."""
+		return self._cluster_labels
 
 	def save_traj_clusters(self):
 		"""Save each cluster as .xtc trajectory."""
@@ -133,9 +137,9 @@ class BaseCluster(Trajectory):
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
-	def get_cluster_labels(self):
-		""" Return cluster labels for each frame in a trajectory."""
-		return self._cluster_labels
+	def get_path_to_traj_clusters(self):
+		""" Get path to trajectory clusters."""
+		return self._traj_cluster_dir
 
 	@staticmethod
 	def _extract_leader(top, traj, trajnum, output_dir):
@@ -171,7 +175,11 @@ class BaseCluster(Trajectory):
 	def load_cluster_leaders(self, path_to_leaders):
 		""" Load cluster leaders."""
 		# This function could become a static class method or a part of save_cluster_leaders
-		self._leader_set = glob.glob("{}{}".format(path_to_leaders, "*"))
+		self._leader_set = glob.glob((path_to_leaders + "*"))
+
+	def get_path_to_cluster_leaders(self):
+		""" Get path to cluster leader directory."""
+		return self._cluster_leader_dir
 
 	def get_cluster_leaders(self):
 		""" Get cluster leaders."""
@@ -196,6 +204,7 @@ class Scatter(Base):
 
 	def __init__(self):
 		Base.__init__(self)
+		self._cluster_leader_dir = None
 		self._leader_set = None
 		self._fit_dir = None
 		self._fit_list = None
@@ -214,21 +223,27 @@ class Scatter(Base):
 
 	def load_cluster_leaders(self, path_to_leaders):
 		""" Load extracted leaders after trajectory clustering."""
-		self._leader_set = glob.glob("{}{}".format(path_to_leaders, "*"))
+		self._cluster_leader_dir = os.path.join(os.path.abspath(path_to_leaders), '')
+		self._leader_set = glob.glob((self._cluster_leader_dir + "*"))
+
+	def get_path_to_cluster_leaders(self):
+		""" Get path to cluster leader directory."""
+		return self._cluster_leader_dir
 
 	def get_cluster_leaders(self):
 		""" Get extracted leaders after trajectory clustering."""
 		return self._leader_set
 
-	def load_fits(self, path_to_fits):
-		""" Load fit files .fit"""
-		fits = glob.glob("{}{}".format(path_to_fits, "*"))
-		self._fit_list = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
-
 	@staticmethod
 	def _get_str_int(s):
 		""" Extract integer out from a file name."""
 		return re.findall("\d+", os.path.basename(s))[0]
+
+	def load_fits(self, path_to_fits):
+		""" Load fit files .fit"""
+		self._fit_dir = os.path.join(os.path.abspath(path_to_fits),'')
+		fits = glob.glob((self._fit_dir + "*"))
+		self._fit_list = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
 
 	@staticmethod
 	def _system_command(command):
@@ -260,6 +275,14 @@ class Scatter(Base):
 		# Initialize fits
 		Scatter.load_fits(self, self._fit_dir + "*.fit")
 
+	def get_path_to_fits(self):
+		""" Get path to fits location."""
+		return self._fit_dir
+
+	def get_fits(self):
+		""" Get a set of scattering curves."""
+		return self._fit_list
+
 	def get_crysol_summary(self):
 		""" Provide a summary about CRYSOL calculations."""
 		raise NotImplementedError
@@ -267,14 +290,6 @@ class Scatter(Base):
 	def get_path_to_crysol_logs(self):
 		""" Get path to CRYSOL logs."""
 		return self._crysol_log_dir
-
-	def get_path_to_fits(self):
-		""" Get path to fits location."""
-		return self._fit_dir
-
-	def get_fit_set(self):
-		""" Get a set of scattering curves."""
-		return self._fit_list
 
 	def calc_pairwise_chi_matrix(self):
 		""" Calculate a pairwise reduced chi square matrix for a set of fits."""
@@ -315,19 +330,19 @@ class Scatter(Base):
 		cutoff = cutoff_value * max(self._linkage_matrix[:, 2])
 		# Get cluster ids from clustering
 		self._fit_cluster_indices, self._indices_of_clusterids = Scatter._get_clusterids(linkage_matrix=self._linkage_matrix,
-																						cutoff=cutoff)
+																						 cutoff=cutoff)
 		# Sort a cluster
 		self._sorted_pairwise_chi_matrix = Scatter._sort_pairwise_chi_matrix_(self, pairwise_chi_matrix=self._pairwise_chi_matrix,
-																		linkage_matrix=self._linkage_matrix,
-																		cutoff=cutoff)
-
-	def get_linkage_dendogram(self):
-		""" Get linkage dendogram."""
-		return self._linkage_dendogram
+																			  linkage_matrix=self._linkage_matrix,
+																			  cutoff=cutoff)
 
 	def get_linkage_matrix(self):
 		""" Get linkage matrix after clustering."""
 		return self._linkage_matrix
+
+	def get_linkage_dendogram(self):
+		""" Get linkage dendogram."""
+		return self._linkage_dendogram
 
 	def get_fit_cluster_indices(self):
 		""" Get cluster indices of clustered fits."""
@@ -373,7 +388,13 @@ class Scatter(Base):
 			repfit_of_clusterid = np.array(clusterid_set)[Scatter._repr_distmat(pairwise_chi)][0]
 			# Append a representative member to a list
 			repfit_list.append(repfit_of_clusterid)
+			# Copy a representative .fit file to a directory
+			shutil.copy(self._fit_list[repfit_of_clusterid].get_path_to_file(), self._repfit_dir)
 		self._repfit_list = [self._fit_list[i] for i in repfit_list]
+
+	def get_path_to_repfits(self):
+		""" Get path to representative fits location."""
+		return self._repfit_dir
 
 	def get_representative_fits(self):
 		""" Get a list of representative fits."""
