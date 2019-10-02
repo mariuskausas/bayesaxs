@@ -114,3 +114,5 @@ ENV/
 *.png
 
 sandbox.py
+
+*.ipynb
