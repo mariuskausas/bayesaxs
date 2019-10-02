@@ -35,7 +35,7 @@ class Base(object):
 		return self._cwdir
 
 	@staticmethod
-	def _mkdir(self, dir_name):
+	def _mkdir(dir_name):
 		""" Create a directory."""
 		if os.path.isdir(dir_name):
 			print("Such folder already exists: {name}".format(name=dir_name))
