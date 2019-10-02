@@ -1,14 +1,9 @@
-from itertools import combinations
-
-
-def get_cluster_metrics(self):
+def get_cluster_metric(metric):
 	""" Get metrics for clustering."""
-
-	metrics = {"xyz": ClusterMetrics._cluster_XYZ,
-				"distances": ClusterMetrics._cluster_distances,
-				"DRID": ClusterMetrics._cluster_drid}
-
-	return metrics
+	cluster_metrics = {"xyz": _cluster_XYZ,
+				"distances": _cluster_distances,
+				"DRID": _cluster_drid}
+	return cluster_metrics[metric]
 
 
 def _cluster_XYZ(traj):
