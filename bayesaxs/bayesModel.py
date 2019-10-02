@@ -102,12 +102,3 @@ class BayesSampling(BayesModel):
 		combs = combinations(self._curves, states)
 		for comb in combs:
 			BayesSampling._inference_single(comb, **kwargs)
-
-
-
-
-
-
-
-
-
