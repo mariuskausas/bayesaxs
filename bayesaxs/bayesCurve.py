@@ -34,6 +34,7 @@ class Base(object):
 		""" Get absolute path for current working directory."""
 		return self._cwdir
 
+	@staticmethod
 	def _mkdir(self, dir_name):
 		""" Create a directory."""
 		if os.path.isdir(dir_name):
