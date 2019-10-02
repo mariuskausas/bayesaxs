@@ -1,4 +1,8 @@
-def get_cluster_metric(metric):
+from itertools import combinations
+import mdtraj as mdt
+
+
+def _get_cluster_metric(metric):
 	""" Get metrics for clustering."""
 	cluster_metrics = {"xyz": _cluster_XYZ,
 				"distances": _cluster_distances,

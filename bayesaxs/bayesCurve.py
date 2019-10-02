@@ -3,11 +3,9 @@ import re
 import glob
 import shutil
 import subprocess
-from itertools import combinations
 import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
-import theano as tt
 import mdtraj as mdt
 import hdbscan
 import bayesChi
@@ -188,9 +186,9 @@ class HDBSCAN(BaseCluster):
 										metric=metric,
 										core_dist_n_jobs=core_dist_n_jobs, **kwargs)
 
-	def fit_predict(self, metric="xyz"):
+	def fit_predict(self, metric="xyz", **kwargs):
 		"""Perform HDBSCAN clustering."""
-		cluster_input = bayesCluster.get_cluster_metric(metric)(traj=self._traj)
+		cluster_input = bayesCluster._get_cluster_metric(metric)(traj=self._traj, **kwargs)
 		self._cluster_labels = self._clusterer.fit_predict(cluster_input)
 
 
