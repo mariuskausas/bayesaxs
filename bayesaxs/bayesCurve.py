@@ -15,12 +15,12 @@ import bayesCluster
 class Base(object):
 
 	def __init__(self, title="Unnamed"):
-		self._title = str(title).strip()
+		self._title = title
 		self._cwdir = os.path.join(os.getcwd(), '')
 
 	def set_title(self, title):
 		""" Set a new title for a curve."""
-		self._title = str(title)
+		self._title = str(title).strip()
 
 	def get_title(self):
 		""" Returns a title of a curve."""
@@ -124,10 +124,10 @@ class BaseCluster(Trajectory):
 		self._cluster_leader_dir = None
 		self._leader_set = None
 
-	def save_traj_clusters(self, folder_name):
+	def save_traj_clusters(self):
 		"""Save each cluster as .xtc trajectory."""
 		# Create a directory where to put cluster trajectories
-		self._traj_cluster_dir = os.path.join(self._cwdir, folder_name, '')
+		self._traj_cluster_dir = os.path.join(self._cwdir, self._title + "_traj_clusters", '')
 		Base._mkdir(self._traj_cluster_dir)
 		#  Extract clusters into .xtc trajectories
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
@@ -154,10 +154,10 @@ class BaseCluster(Trajectory):
 		# Save the leader as a PDB
 		traj[leader_index].save_pdb(filename=output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
 
-	def save_cluster_leaders(self, folder_name):
+	def save_cluster_leaders(self):
 		"""Save each cluster leader as .pdb from cluster trajectories."""
 		# Create a directory where to put cluster leaders extracted from cluster trajectories
-		self._cluster_leader_dir = os.path.join(self._cwdir, folder_name, '')
+		self._cluster_leader_dir = os.path.join(self._cwdir, self._title + "_cluster_leaders", '')
 		Base._mkdir(self._cluster_leader_dir)
 		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
@@ -198,13 +198,15 @@ class Scatter(Base):
 		Base.__init__(self)
 		self._leader_set = None
 		self._fit_dir = None
-		self._fit_set = None
+		self._fit_list = None
+		self._crysol_log_dir = None
 		self._pairwise_chi_matrix = None
 		self._linkage_matrix = None
 		self._linkage_dendogram = None
 		self._fit_cluster_indices = None
 		self._indices_of_clusterids = None
 		self._sorted_pairwise_chi_matrix = None
+		self._repfit_dir = None
 		self._repfit_list = None
 
 	def __repr__(self):
@@ -218,17 +220,30 @@ class Scatter(Base):
 		""" Get extracted leaders after trajectory clustering."""
 		return self._leader_set
 
+	def load_fits(self, path_to_fits):
+		""" Load fit files .fit"""
+		fits = glob.glob("{}{}".format(path_to_fits, "*"))
+		self._fit_list = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
+
+	@staticmethod
+	def _get_str_int(s):
+		""" Extract integer out from a file name."""
+		return re.findall("\d+", os.path.basename(s))[0]
+
 	@staticmethod
 	def _system_command(command):
 		""" Run a command line."""
 		status = subprocess.call(command)
 		return status
 
-	def calc_scattering(self, exp_curve, folder_name):
+	def calc_scattering(self, exp_curve):
 		""" Simulate scattering for every leader using CRYSOL."""
-		# Create a directory to store all CRYSOL output
-		self._fit_dir = os.path.join(self._cwdir, folder_name, '')
+		# Create a directory to store CRYSOL fits
+		self._fit_dir = os.path.join(self._cwdir, self._title + "_fits", '')
 		Base._mkdir(self._fit_dir)
+		# Create a directory to store CRYSOL summary and logs
+		self._crysol_log_dir = os.path.join(self._cwdir, self._title + "_crysol_logs", '')
+		Base._mkdir(self._crysol_log_dir)
 		# Calculate the fits and move them to directory
 		for leader in self._leader_set:
 			# Run CRYSOL command
@@ -236,27 +251,22 @@ class Scatter(Base):
 			leader_index = Scatter._get_str_int(leader)
 			call_crysol = (["crysol"] + [leader] + [exp_curve_file] + ["-p"] + ["fit_" + leader_index])
 			Scatter._system_command(call_crysol)
-			# Move CRYSOL output to a fits directory
+			# Move CRYSOL fit to a fits directory
 			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)
-			shutil.move("fit_" + leader_index + ".log", self._fit_dir)
-		# Move CRYSOL summary to a fits directory
-		shutil.move("crysol_summary.txt", self._fit_dir)
+			# Move CRYSOL log to a logs directory
+			shutil.move("fit_" + leader_index + ".log", self._crysol_log_dir)
+		# Move CRYSOL summary to a logs directory
+		shutil.move("crysol_summary.txt", self._crysol_log_dir)
 		# Initialize fits
 		Scatter.load_fits(self, self._fit_dir + "*.fit")
-
-	@staticmethod
-	def _get_str_int(s):
-		""" Extract integer out from a file name."""
-		return re.findall("\d+", os.path.basename(s))[0]
-
-	def load_fits(self, path_to_fits):
-		""" Load fit files .fit"""
-		fits = glob.glob("{}{}".format(path_to_fits, "*"))
-		self._fit_set = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
 
 	def get_crysol_summary(self):
 		""" Provide a summary about CRYSOL calculations."""
 		raise NotImplementedError
+
+	def get_path_to_crysol_logs(self):
+		""" Get path to CRYSOL logs."""
+		return self._crysol_log_dir
 
 	def get_path_to_fits(self):
 		""" Get path to fits location."""
@@ -264,11 +274,11 @@ class Scatter(Base):
 
 	def get_fit_set(self):
 		""" Get a set of scattering curves."""
-		return self._fit_set
+		return self._fit_list
 
 	def calc_pairwise_chi_matrix(self):
 		""" Calculate a pairwise reduced chi square matrix for a set of fits."""
-		self._pairwise_chi_matrix = bayesChi.pairwise_chi(self._fit_set)
+		self._pairwise_chi_matrix = bayesChi.pairwise_chi(self._fit_list)
 
 	def get_pairwise_chi_matrix(self):
 		""" Get a pairwise chi square matrix between theoretical scattering curves."""
@@ -297,10 +307,6 @@ class Scatter(Base):
 		sorted_matrix = sorted_matrix[:, index]
 		return sorted_matrix
 
-	def get_linkage_dendogram(self):
-		""" Get linkage dendogram."""
-		return self._linkage_dendogram
-
 	def cluster_fits(self, cutoff_value):
 		""" Perform hierarchical clustering on pairwise reduced chi squared matrix."""
 		# Perform linkage clustering
@@ -314,6 +320,10 @@ class Scatter(Base):
 		self._sorted_pairwise_chi_matrix = Scatter._sort_pairwise_chi_matrix_(self, pairwise_chi_matrix=self._pairwise_chi_matrix,
 																		linkage_matrix=self._linkage_matrix,
 																		cutoff=cutoff)
+
+	def get_linkage_dendogram(self):
+		""" Get linkage dendogram."""
+		return self._linkage_dendogram
 
 	def get_linkage_matrix(self):
 		""" Get linkage matrix after clustering."""
@@ -348,19 +358,22 @@ class Scatter(Base):
 
 	def calc_representative_fits(self):
 		""" Calculate representative fit form clustered fits."""
+		# Create a directory to store representative fits
+		self._repfit_dir = os.path.join(self._cwdir, self._title + "_repfits", '')
+		Base._mkdir(self._repfit_dir)
 		# Empty list for representative fits
 		repfit_list = []
 		# For each cluster set find a representative member and append to a list
 		for clusterid_set in self._indices_of_clusterids:
 			# Extract appropriate clusterid curves for the whole fit set
-			clusterid_curves = [self._fit_set[i] for i in clusterid_set]
+			clusterid_curves = [self._fit_list[i] for i in clusterid_set]
 			# Calculate a pair-wise chi matrix
 			pairwise_chi = bayesChi.pairwise_chi(clusterid_curves)
 			# Extract a representative member (convert a list to an array, pass a boolean np array for indexing)
 			repfit_of_clusterid = np.array(clusterid_set)[Scatter._repr_distmat(pairwise_chi)][0]
 			# Append a representative member to a list
 			repfit_list.append(repfit_of_clusterid)
-		self._repfit_list = [self._fit_set[i] for i in repfit_list]
+		self._repfit_list = [self._fit_list[i] for i in repfit_list]
 
 	def get_representative_fits(self):
 		""" Get a list of representative fits."""
