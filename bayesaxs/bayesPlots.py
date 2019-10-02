@@ -58,7 +58,7 @@ def plot_multi_scatters(curves):
 
 	ax.grid()
 
-	ax.legend(ncol=2, loc="upper right", fontsize=10)
+	ax.legend(loc="upper right", fontsize=10)
 
 	plt.show()
 	return

@@ -171,7 +171,7 @@ class BaseCluster(Trajectory):
 	def load_cluster_leaders(self, path_to_leaders):
 		""" Load cluster leaders."""
 		# This function could become a static class method or a part of save_cluster_leaders
-		self._leader_set = glob.glob(path_to_leaders)
+		self._leader_set = glob.glob("{}{}".format(path_to_leaders, "*"))
 
 	def get_cluster_leaders(self):
 		""" Get cluster leaders."""
@@ -212,7 +212,7 @@ class Scatter(Base):
 
 	def load_cluster_leaders(self, path_to_leaders):
 		""" Load extracted leaders after trajectory clustering."""
-		self._leader_set = glob.glob(path_to_leaders)
+		self._leader_set = glob.glob("{}{}".format(path_to_leaders, "*"))
 
 	def get_cluster_leaders(self):
 		""" Get extracted leaders after trajectory clustering."""
@@ -251,7 +251,7 @@ class Scatter(Base):
 
 	def load_fits(self, path_to_fits):
 		""" Load fit files .fit"""
-		fits = glob.glob(path_to_fits)
+		fits = glob.glob("{}{}".format(path_to_fits, "*"))
 		self._fit_set = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
 
 	def get_crysol_summary(self):
