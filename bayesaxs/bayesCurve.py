@@ -178,14 +178,8 @@ class BaseCluster(Trajectory):
 							trajnum=cluster,
 							output_dir=self._cluster_leader_dir)
 
-		# Initialize cluster PDBs
-		BaseCluster.load_cluster_leaders(self, path_to_leaders=self._cluster_leader_dir + "*.pdb")
-
-	def load_cluster_leaders(self, path_to_leaders):
-		""" Load cluster leaders."""
-
-		# This function could become a static class method or a part of save_cluster_leaders
-		self._leader_set = glob.glob((path_to_leaders + "*"))
+		# Initialize cluster leaders PDBs
+		self._leader_set = glob.glob((self._cluster_leader_dir + "*"))
 
 	def get_path_to_cluster_leaders(self):
 		""" Get path to cluster leader directory."""
