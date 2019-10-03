@@ -10,9 +10,10 @@ def _get_cluster_metric(metric):
 	return cluster_metrics[metric]
 
 
-def _cluster_XYZ(traj):
+def _cluster_XYZ(traj, atom_selection="name CA"):
 	""" Prepare XYZ coordinates of a trajectory for clustering."""
-	temp = traj.xyz
+	selected_atoms = traj.topology.select(atom_selection)
+	temp = traj.xyz[:, selected_atoms]
 	frames = temp.shape[0]
 	atoms = temp.shape[1]
 	reshaped = temp.reshape((frames, atoms * 3))
