@@ -246,32 +246,68 @@ class Scatter(Base):
 		self._fit_list = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
 
 	@staticmethod
+	def _crysol_parameters(pdb, dat, p, lm=25, fb=17, sm=0.5, ns=256, un=1, dns=0.334, dro=0, err=True, cst=True):
+		""" Set CRYSOL call parameters for passing to subprocess."""
+
+		# Define CRYSOL input parameters
+		parameters = {"pdb": ["{}".format(pdb)],  				# input .pdb file
+					"dat": ["{}".format(dat)],  				# input .dat file
+					"p": ["-p"] + ["fit_{}".format(p)], 		# prefix for output file names
+					"lm": ["-lm"] + ["{}".format(lm)],  		# maximum number of harmonics
+					"fb": ["-fb"] + ["{}".format(fb)],  		# order of Fibonacci grid
+					"sm": ["-sm"] + ["{}".format(sm)],  		# maximum scattering vector
+					"ns": ["-ns"] + ["{}".format(ns)],  		# number of points in computed curve
+					"un": ["-un"] + ["{}".format(un)],  		# angular units
+					"dns": ["-dns"] + ["{}".format(dns)],  		# solvent density
+					"dro": ["-dro"] + ["{}".format(dro)]}  		# contrast of hydration shell
+
+		# Check if err and cst flags need to be set up
+		if err:
+			parameters["err"] = ["-err"]
+		if cst:
+			parameters["cst"] = ["-cst"]
+
+		# Construct CRYSOL call with associated parameters
+		crysol_call = ["crysol"]
+		for key in parameters.keys():
+			crysol_call += parameters.get(key, [])  # return empty list to avoid None addition
+
+		return crysol_call
+
+	@staticmethod
 	def _system_command(command):
 		""" Run a command line."""
 		status = subprocess.call(command)
 		return status
 
-	def calc_scattering(self, exp_curve):
+	def calc_scattering(self, exp_curve, **kwargs):
 		""" Simulate scattering for every leader using CRYSOL."""
+
 		# Create a directory to store CRYSOL fits
 		self._fit_dir = os.path.join(self._cwdir, self._title + "_fits", '')
 		Base._mkdir(self._fit_dir)
+
 		# Create a directory to store CRYSOL summary and logs
 		self._crysol_log_dir = os.path.join(self._cwdir, self._title + "_crysol_logs", '')
 		Base._mkdir(self._crysol_log_dir)
+
 		# Calculate the fits and move them to directory
 		for leader in self._leader_set:
 			# Run CRYSOL command
 			exp_curve_file = exp_curve.get_path_to_file()
 			leader_index = Scatter._get_str_int(leader)
-			call_crysol = (["crysol"] + [leader] + [exp_curve_file] + ["-p"] + ["fit_" + leader_index])
-			Scatter._system_command(call_crysol)
+			crysol_call = Scatter._crysol_parameters(pdb=leader, dat=exp_curve_file, p=leader_index, **kwargs)
+			Scatter._system_command(crysol_call)
+
 			# Move CRYSOL fit to a fits directory
 			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)
+
 			# Move CRYSOL log to a logs directory
 			shutil.move("fit_" + leader_index + ".log", self._crysol_log_dir)
+
 		# Move CRYSOL summary to a logs directory
 		shutil.move("crysol_summary.txt", self._crysol_log_dir)
+
 		# Initialize fits
 		Scatter.load_fits(self, self._fit_dir + "*.fit")
 
