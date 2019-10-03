@@ -16,10 +16,10 @@ def _cluster_XYZ(traj, atom_selection="name CA"):
 	temp = traj.xyz[:, selected_atoms]
 	frames = temp.shape[0]
 	atoms = temp.shape[1]
-	reshaped = temp.reshape((frames, atoms * 3))
-	reshaped = reshaped.astype("float64")
+	reshaped_XYZ = temp.reshape((frames, atoms * 3))
+	reshaped_XYZ = reshaped_XYZ.astype("float64")
 	temp = []
-	return reshaped
+	return reshaped_XYZ
 
 
 def _cluster_distances(traj, atom_selection="name CA"):
@@ -33,4 +33,5 @@ def _cluster_distances(traj, atom_selection="name CA"):
 def _cluster_drid(traj, atom_selection="name CA"):
 	""" Calulate DRID representation of a trajectory for clustering."""
 	selected_atoms = traj.topology.select(atom_selection)
-	return mdt.compute_drid(traj=traj, atom_indices=selected_atoms)
+	drid_distances = mdt.compute_drid(traj=traj, atom_indices=selected_atoms)
+	return drid_distances
