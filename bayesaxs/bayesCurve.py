@@ -247,7 +247,7 @@ class Scatter(Base):
 
 	def load_fits(self, path_to_fits):
 		""" Load fit files .fit"""
-		self._fit_dir = os.path.join(os.path.abspath(path_to_fits),'')
+		self._fit_dir = os.path.join(os.path.abspath(path_to_fits), '')
 		fits = glob.glob((self._fit_dir + "*"))
 		self._fit_list = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
 
@@ -464,3 +464,9 @@ class Scatter(Base):
 	def get_representative_fits(self):
 		""" Get a list of representative fits."""
 		return self._repfit_list
+
+	def load_repfits(self, path_to_fits):
+		""" Load repfit files .fit"""
+		self._repfit_dir = os.path.join(os.path.abspath(path_to_fits), '')
+		repfits = glob.glob((self._repfit_dir + "*"))
+		self._repfit_list = [Curve(repfit, title=Scatter._get_str_int(repfit)) for repfit in repfits]
