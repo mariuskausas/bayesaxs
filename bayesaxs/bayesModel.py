@@ -7,13 +7,13 @@ import bayesChi
 
 class BayesModel(Base):
 
-	def __init__(self, curves, title="BayesModel"):
+	def __init__(self, title="BayesModel"):
 		Base.__init__(self, title=title)
 		self._title = title
-		self._curves = curves
-		self._shape = len(curves)
-		self._exp_curve = self._curves[0].get_iq()
-		self._exp_sigma = self._curves[0].get_sigma()
+		self._curves = None
+		self._shape = None
+		self._exp_curve = None
+		self._exp_sigma = None
 		self._model = pm.Model()
 		self._dirichlet = None
 		self._weighted_curve = None
@@ -27,6 +27,9 @@ class BayesModel(Base):
 	def load_curves(self, curves):
 		""" Load a set of representative curves."""
 		self._curves = curves
+		self._shape = len(self._curves)
+		self._exp_curve = self._curves[0].get_iq()
+		self._exp_sigma = self._curves[0].get_sigma()
 
 	def get_curves(self):
 		""" Return a set of representative curves."""
@@ -35,11 +38,10 @@ class BayesModel(Base):
 
 class BayesSampling(BayesModel):
 
-	def __init__(self, curves):
-		BayesModel.__init__(self, curves)
-		self._initialize_variables()
+	def __init__(self):
+		BayesModel.__init__(self)
 
-	def _initialize_variables(self):
+	def initialize_variables(self):
 		with self._model:
 			# Initialize dirichlet weights
 			self._dirichlet = pm.Dirichlet("w", a=np.ones(self._shape), shape=self._shape)
@@ -47,7 +49,7 @@ class BayesSampling(BayesModel):
 			self._weighted_curve = BayesSampling._composite(curves=self._curves,
 															weights=self._dirichlet,
 															shape=self._shape)
-			self._chi2 = bayesChi.chi2_tt(exp=self._exp_curve[5:],
+			self._chi2 = bayesChi.chi2red_tt(exp=self._exp_curve[5:],
 								theor=self._weighted_curve[5:],
 								sigma=self._exp_sigma[5:])
 			# Set likelihood in a form of exp(-chi2)
@@ -57,7 +59,7 @@ class BayesSampling(BayesModel):
 	def _composite(curves, weights, shape):
 		return np.sum([(curves[i].get_fit() * weights[i]) for i in range(shape)], axis=0)
 
-	def _inference(self, step, num_samples, chains=1, njobs=1):
+	def _inference(self, step, num_samples, chains=1):
 		with self._model:
 			# Set the MCMC sampler
 			if isinstance(step, str):
@@ -65,7 +67,7 @@ class BayesSampling(BayesModel):
 					'nuts': pm.NUTS(),
 					'metropolis': pm.Metropolis()
 				}[step.lower()]
-			self._trace = pm.sample(num_samples, step=step, chains=chains, njobs=njobs)
+			self._trace = pm.sample(num_samples, step=step, chains=chains)
 
 	def _weight_summary(self):
 		""" Simple summary function to return weights and standard deviations for a multi state scattering model."""
@@ -94,11 +96,14 @@ class BayesSampling(BayesModel):
 
 	@staticmethod
 	def _inference_single(curves, **kwargs):
-		single_state = BayesSampling(curves)
+		single_state = BayesSampling()
+		single_state.load_curves(curves)
+		single_state.initialize_variables()
 		single_state._inference(**kwargs)
 		single_state._summary()
 
 	def inference_multiple(self, states, **kwargs):
 		combs = combinations(self._curves, states)
 		for comb in combs:
+			print(comb)
 			BayesSampling._inference_single(comb, **kwargs)
