@@ -100,10 +100,10 @@ class Trajectory(Base):
 	def __repr__(self):
 		return "Trajectory: {}".format(self._traj)
 
-	def load_traj(self, pdb_path, traj_path):
+	def load_traj(self, pdb_path, traj_path, stride=1):
 		""" Load a trajectory."""
 		self._pdb = mdt.load_pdb(pdb_path)
-		self._traj = mdt.load(traj_path, top=pdb_path)
+		self._traj = mdt.load(traj_path, top=pdb_path, stride=stride)
 
 	def get_pdb(self):
 		""" Return loaded .pdb topology."""
