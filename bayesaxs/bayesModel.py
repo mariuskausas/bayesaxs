@@ -35,31 +35,25 @@ class BayesModel(Base):
 		""" Return a set of representative curves."""
 		return self._curves
 
-
-class BayesSampling(BayesModel):
-
-	def __init__(self):
-		BayesModel.__init__(self)
-
-	def initialize_variables(self):
+	def _initialize_variables(self):
 		with self._model:
 			# Initialize dirichlet weights
 			self._dirichlet = pm.Dirichlet("w", a=np.ones(self._shape), shape=self._shape)
 			# Calculate a weighted curve
-			self._weighted_curve = BayesSampling._composite(curves=self._curves,
+			self._weighted_curve = BayesModel._composite(curves=self._curves,
 															weights=self._dirichlet,
 															shape=self._shape)
-			self._chi2 = bayesChi.chi2red_tt(exp=self._exp_curve[5:],
+			self._chi2 = bayesChi.chi2_tt(exp=self._exp_curve[5:],
 								theor=self._weighted_curve[5:],
 								sigma=self._exp_sigma[5:])
 			# Set likelihood in a form of exp(-chi2)
-			self._likelihood = pm.Exponential("lam", lam=1, observed=self._chi2)
+			self._likelihood = pm.Exponential("lam", lam=1, observed=self._chi2 / 2.0)
 
 	@staticmethod
 	def _composite(curves, weights, shape):
 		return np.sum([(curves[i].get_fit() * weights[i]) for i in range(shape)], axis=0)
 
-	def _inference(self, step, num_samples, chains=1):
+	def _sample(self, step, num_samples, chains=1):
 		with self._model:
 			# Set the MCMC sampler
 			if isinstance(step, str):
@@ -87,23 +81,23 @@ class BayesSampling(BayesModel):
 
 	def _summary(self):
 		# Get the weights
-		mu, sd = BayesSampling._weight_summary(self)
+		mu, sd = BayesModel._weight_summary(self)
 		# Calculate the weighted curve chi2red
 		final_weighted_curve = np.sum([(self._curves[i].get_fit() * mu[i]) for i in range(self._shape)], axis=0)
 		final_chi2 = bayesChi.chi_np(exp=self._exp_curve, theor=final_weighted_curve, sigma=self._exp_sigma)
 		# Print the summary output
-		BayesSampling._summary_output(self, mu=mu, sd=sd, final_chi2=final_chi2)
+		BayesModel._summary_output(self, mu=mu, sd=sd, final_chi2=final_chi2)
 
 	@staticmethod
-	def _inference_single(curves, **kwargs):
-		single_state = BayesSampling()
+	def _inference_single_state(curves, **kwargs):
+		single_state = BayesModel()
 		single_state.load_curves(curves)
-		single_state.initialize_variables()
-		single_state._inference(**kwargs)
+		single_state._initialize_variables()
+		single_state._sample(**kwargs)
 		single_state._summary()
 
 	def inference_multiple(self, states, **kwargs):
 		combs = combinations(self._curves, states)
 		for comb in combs:
 			print(comb)
-			BayesSampling._inference_single(comb, **kwargs)
+			BayesModel._inference_single_state(comb, **kwargs)
