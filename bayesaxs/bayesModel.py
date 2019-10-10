@@ -12,14 +12,15 @@ class BayesModel(Base):
 		self._title = title
 		self._curves = None
 		self._shape = None
-		self._exp_curve = None
+		self._exp_q = None
+		self._exp_iq = None
 		self._exp_sigma = None
 		self._model = pm.Model()
-		self._dirichlet = None
-		self._weighted_curve = None
-		self._chi2 = None
-		self._likelihood = None
-		self._trace = None
+		self._pm_weights = None
+		self._pm_weighted_curve = None
+		self._pm_chi2 = None
+		self._pm_likelihood = None
+		self._pm_trace = None
 
 	def __repr__(self):
 		return "BayesModel: {}".format(self._title)
@@ -28,32 +29,49 @@ class BayesModel(Base):
 		""" Load a set of representative curves."""
 		self._curves = curves
 		self._shape = len(self._curves)
-		self._exp_curve = self._curves[0].get_iq()
+		self._exp_q = self._curves[0].get_q()
+		self._exp_iq = self._curves[0].get_iq()
 		self._exp_sigma = self._curves[0].get_sigma()
 
 	def get_curves(self):
 		""" Return a set of representative curves."""
 		return self._curves
 
-	def _initialize_variables(self):
-		with self._model:
-			# Initialize dirichlet weights
-			self._dirichlet = pm.Dirichlet("w", a=np.ones(self._shape), shape=self._shape)
-			# Calculate a weighted curve
-			self._weighted_curve = BayesModel._composite(curves=self._curves,
-															weights=self._dirichlet,
-															shape=self._shape)
-			self._chi2 = bayesChi.chi2_tt(exp=self._exp_curve[5:],
-								theor=self._weighted_curve[5:],
-								sigma=self._exp_sigma[5:])
-			# Set likelihood in a form of exp(-chi2)
-			self._likelihood = pm.Exponential("lam", lam=1, observed=self._chi2 / 2.0)
+	def get_exp_q(self):
+		return self._exp_q
+
+	def get_exp_iq(self):
+		""" Return I(q) values for experimental curve."""
+		return self._exp_iq
+
+	def get_exp_sigma(self):
+		""" Return sigma values for experimental curve."""
+		return self._exp_sigma
 
 	@staticmethod
 	def _composite(curves, weights, shape):
+		""" Calculate a composite curve."""
 		return np.sum([(curves[i].get_fit() * weights[i]) for i in range(shape)], axis=0)
 
+	def _initialize_parameters(self):
+		""" Initialize weigths, weighted curve and set likelihood"""
+
+		# Initialize PyMC3 model
+		with self._model:
+			# Initialize weights (Dirichlet distribution)
+			self._pm_weights = pm.Dirichlet("w", a=np.ones(self._shape), shape=self._shape)
+
+			# Calculate a weighted curve
+			self._pm_weighted_curve = BayesModel._composite(curves=self._curves, weights=self._pm_weights, shape=self._shape)
+			self._pm_chi2 = bayesChi.chi2_tt(exp=self._exp_iq[5:], theor=self._pm_weighted_curve[5:], sigma=self._exp_sigma[5:])
+
+			# Set likelihood in a form of exp(-chi2/2)
+			self._pm_likelihood = pm.Exponential("lam", lam=1, observed=(self._pm_chi2 / 2.0))
+
 	def _sample(self, step, num_samples, chains=1):
+		""" Perform MCMC sampling."""
+
+		# Finalize PyMC3 model
 		with self._model:
 			# Set the MCMC sampler
 			if isinstance(step, str):
@@ -61,43 +79,65 @@ class BayesModel(Base):
 					'nuts': pm.NUTS(),
 					'metropolis': pm.Metropolis()
 				}[step.lower()]
-			self._trace = pm.sample(num_samples, step=step, chains=chains)
 
-	def _weight_summary(self):
-		""" Simple summary function to return weights and standard deviations for a multi state scattering model."""
-		mu = self._trace['w'].mean(axis=0)
-		sd = self._trace['w'].std(axis=0)
-		return mu, sd
+			# Perform MCMC sampling
+			self._pm_trace = pm.sample(num_samples, step=step, chains=chains)
 
-	def _summary_output(self, mu, sd, final_chi2):
-		print("-----------------------------")
-		print("Simulation")
-		print("                             ")
-		print("Chi square value: {}".format(np.round(final_chi2, 3)))
-		for indx, curve in enumerate(self._curves):
-			print(curve, "mu: {} sd: {}".format(np.round(mu[indx], 3), np.round(sd[indx], 3)))
-		print("                             ")
-		print("-----------------------------")
+	def _sample_summary(self):
+		""" Return MCMC sampling summary."""
 
-	def _summary(self):
-		# Get the weights
-		mu, sd = BayesModel._weight_summary(self)
-		# Calculate the weighted curve chi2red
-		final_weighted_curve = np.sum([(self._curves[i].get_fit() * mu[i]) for i in range(self._shape)], axis=0)
-		final_chi2 = bayesChi.chi_np(exp=self._exp_curve, theor=final_weighted_curve, sigma=self._exp_sigma)
-		# Print the summary output
-		BayesModel._summary_output(self, mu=mu, sd=sd, final_chi2=final_chi2)
+		# Set empty sample dictionary
+		sample_summary = {}
 
-	@staticmethod
-	def _inference_single_state(curves, **kwargs):
+		# Get the weights and sd
+		weights = self._pm_trace['w'].mean(axis=0)
+		sd = self._pm_trace['w'].std(axis=0)
+
+		# Calculate the optimized curve
+		opt_curve = np.sum([(self._curves[i].get_fit() * weights[i]) for i in range(self._shape)], axis=0)
+
+		# Calculate chi2red for an optimized curve
+		opt_chi2 = bayesChi.chi_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
+
+		# Update sample summary
+		sample_summary["w"] = weights
+		sample_summary["sd"] = sd
+		sample_summary["opt_curve"] = opt_curve
+		sample_summary["opt_chi2"] = opt_chi2
+		sample_summary["trace"] = self._pm_trace
+
+		return sample_summary
+
+	def inference_single_state(self, curves, **kwargs):
+		""" Infer weights for a single combination of scattering curves."""
+
+		# Set up a BayesModel
 		single_state = BayesModel()
-		single_state.load_curves(curves)
-		single_state._initialize_variables()
-		single_state._sample(**kwargs)
-		single_state._summary()
 
-	def inference_multiple(self, states, **kwargs):
-		combs = combinations(self._curves, states)
+		# Load scattering curves
+		single_state.load_curves(curves)
+
+		# Initialization of BayesModel parameters and sampling
+		single_state._initialize_parameters()
+		single_state._sample(**kwargs)
+
+		return single_state._sample_summary()
+
+	def inference_multiple_states(self, n_states, **kwargs):
+		""" Infer weights for a set of unique scattering curve combinations."""
+
+		# Set empty states dictionary
+		states_summary = {}
+
+		# Define unique combinations of scattering states
+		combs = combinations(self._curves, n_states)
+
+		# Perform sampling for each combination
 		for comb in combs:
-			print(comb)
-			BayesModel._inference_single_state(comb, **kwargs)
+			# Set combination title (e.g. 1:2:3)
+			comb_title = ":".join([curve.get_title() for curve in comb])
+
+			# Perform BayesModel sampling
+			states_summary[comb_title] = BayesModel.inference_single_state(self, comb, **kwargs)
+
+		return states_summary
