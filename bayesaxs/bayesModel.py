@@ -63,7 +63,7 @@ class BayesModel(Base):
 
 			# Calculate a weighted curve
 			self._pm_weighted_curve = BayesModel._composite(curves=self._curves, weights=self._pm_weights, shape=self._shape)
-			self._pm_chi2 = bayesChi.chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
+			self._pm_chi2 = bayesChi._chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
 
 			# Set likelihood in a form of exp(-chi2/2)
 			self._pm_likelihood = pm.Exponential("lam", lam=1, observed=(self._pm_chi2 / 2.0))
@@ -97,7 +97,7 @@ class BayesModel(Base):
 		opt_curve = np.sum([(self._curves[i].get_fit() * weights[i]) for i in range(self._shape)], axis=0)
 
 		# Calculate chi2red for an optimized curve
-		opt_chi2 = bayesChi.chi2red_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
+		opt_chi2 = bayesChi._chi2red_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
 
 		# Update sample summary
 		sample_summary["w"] = weights

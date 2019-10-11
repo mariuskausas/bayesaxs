@@ -345,7 +345,7 @@ class Scatter(Base):
 
 	def calc_pairwise_chi_matrix(self):
 		""" Calculate a pairwise reduced chi square matrix for a set of fits."""
-		self._pairwise_chi_matrix = bayesChi.pairwise_chi(self._fit_list)
+		self._pairwise_chi_matrix = bayesChi._pairwise_chi(self._fit_list)
 
 	def get_pairwise_chi_matrix(self):
 		""" Get a pairwise chi square matrix between theoretical scattering curves."""
@@ -454,7 +454,7 @@ class Scatter(Base):
 			clusterid_curves = [self._fit_list[i] for i in clusterid_set]
 
 			# Calculate a pair-wise chi matrix
-			pairwise_chi = bayesChi.pairwise_chi(clusterid_curves)
+			pairwise_chi = bayesChi._pairwise_chi(clusterid_curves)
 
 			# Extract a representative member (convert a list to an array, pass a boolean np array for indexing)
 			repfit_of_clusterid = np.array(clusterid_set)[Scatter._repr_distmat(pairwise_chi)][0]

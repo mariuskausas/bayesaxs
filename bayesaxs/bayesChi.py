@@ -2,7 +2,7 @@ import numpy as np
 import theano as tt
 
 
-def chi2_np(exp, theor, sigma):
+def _chi2_np(exp, theor, sigma):
 	""" Calculate chi squared (numpy method)."""
 	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
 	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
@@ -10,7 +10,7 @@ def chi2_np(exp, theor, sigma):
 	return chi2
 
 
-def chi2red_np(exp, theor, sigma):
+def _chi2red_np(exp, theor, sigma):
 	""" Calculate reduced chi squared (numpy method)."""
 	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
 	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
@@ -19,19 +19,19 @@ def chi2red_np(exp, theor, sigma):
 	return chi2red
 
 
-def chi2_tt(exp, theor, sigma):
+def _chi2_tt(exp, theor, sigma):
 	""" Calculate chi squared (theano method)."""
 	chi2 = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
 	return chi2
 
 
-def chi2red_tt(exp, theor, sigma):
+def _chi2red_tt(exp, theor, sigma):
 	""" Calculate reduced chi squared (theano method)."""
 	chi2red = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2)) / (exp.size - 1)
 	return chi2red
 
 
-def pairwise_chi(curves):
+def _pairwise_chi(curves):
 	""" Calculate a pairwise reduced chi squared matrix.
 
 	:param curves: A list containing curves to iterate over.
@@ -45,6 +45,6 @@ def pairwise_chi(curves):
 	# Perform a pairwise reduced chi squared calculation
 	for i in range(number_of_curves):
 		for j in range(number_of_curves):
-			pairwise_mat[i:i + 1, j:j + 1] = chi2red_np(curves[i].get_fit(), curves[j].get_fit(), curves[i].get_sigma())
+			pairwise_mat[i:i + 1, j:j + 1] = _chi2red_np(curves[i].get_fit(), curves[j].get_fit(), curves[i].get_sigma())
 
 	return pairwise_mat
