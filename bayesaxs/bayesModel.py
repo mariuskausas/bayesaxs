@@ -63,7 +63,7 @@ class BayesModel(Base):
 
 			# Calculate a weighted curve
 			self._pm_weighted_curve = BayesModel._composite(curves=self._curves, weights=self._pm_weights, shape=self._shape)
-			self._pm_chi2 = bayesChi.chi2_tt(exp=self._exp_iq[5:], theor=self._pm_weighted_curve[5:], sigma=self._exp_sigma[5:])
+			self._pm_chi2 = bayesChi.chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
 
 			# Set likelihood in a form of exp(-chi2/2)
 			self._pm_likelihood = pm.Exponential("lam", lam=1, observed=(self._pm_chi2 / 2.0))

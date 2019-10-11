@@ -297,6 +297,9 @@ class Scatter(Base):
 		self._crysol_log_dir = os.path.join(self._cwdir, self._title + "_crysol_logs", '')
 		Base._mkdir(self._crysol_log_dir)
 
+		# Define index range for cutting fit files
+		exp_curve_length = exp_curve.get_curve_values().shape[0]
+
 		# Calculate the fits and move them to directory
 		for leader in self._leader_set:
 			# Run CRYSOL command
@@ -304,6 +307,13 @@ class Scatter(Base):
 			leader_index = Scatter._get_str_int(leader)
 			crysol_call = Scatter._crysol_parameters(pdb=leader, dat=exp_curve_file, p=leader_index, **kwargs)
 			Scatter._system_command(crysol_call)
+
+			# Load produced fit
+			fit = np.loadtxt("fit_" + leader_index + ".fit", skiprows=1)
+
+			# Cut fit to the right shape
+			fit_length = fit.shape[0]
+			np.savetxt("fit_" + leader_index + ".fit", fit[fit_length - exp_curve_length:], header="CRYSOL fit")
 
 			# Move CRYSOL fit to a fits directory
 			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)

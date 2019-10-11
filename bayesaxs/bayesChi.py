@@ -13,15 +13,22 @@ def chi_np(exp, theor, sigma):
 
 def chi2_tt(exp, theor, sigma):
 	""" Calculate chi squared (theano method)."""
+	diff = exp - theor
+	chi_value = tt.tensor.sum(tt.tensor.power(tt.tensor.switch(tt.tensor.eq(diff, 0), 0, diff / sigma), 2))
+	return chi_value
+
+
+def chi2_tt2(exp, theor, sigma):
+	""" Calculate chi squared (theano method)."""
 	chi_value = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
-	return tt.tensor.sum(chi_value)
+	return chi_value
 
 
 def chi2red_tt(exp, theor, sigma):
 	""" Calculate reduced chi squared (theano method)."""
 	chi_value = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2)) / (
 				exp.size - 1)
-	return tt.tensor.sum(chi_value)
+	return chi_value
 
 
 def pairwise_chi(curves):
