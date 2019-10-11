@@ -97,7 +97,7 @@ class BayesModel(Base):
 		opt_curve = np.sum([(self._curves[i].get_fit() * weights[i]) for i in range(self._shape)], axis=0)
 
 		# Calculate chi2red for an optimized curve
-		opt_chi2 = bayesChi.chi_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
+		opt_chi2 = bayesChi.chi2red_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
 
 		# Update sample summary
 		sample_summary["w"] = weights
@@ -108,7 +108,7 @@ class BayesModel(Base):
 
 		return sample_summary
 
-	def inference_single_state(self, curves, **kwargs):
+	def inference_single_combination(self, curves, **kwargs):
 		""" Infer weights for a single combination of scattering curves."""
 
 		# Set up a BayesModel
@@ -123,11 +123,11 @@ class BayesModel(Base):
 
 		return single_state._sample_summary()
 
-	def inference_multiple_states(self, n_states, **kwargs):
-		""" Infer weights for a set of unique scattering curve combinations."""
+	def inference_single_basis(self, n_states, **kwargs):
+		""" Infer weights for a set of unique scattering curve combinations (basis)."""
 
 		# Set empty states dictionary
-		states_summary = {}
+		basis_summary = {}
 
 		# Define unique combinations of scattering states
 		combs = combinations(self._curves, n_states)
@@ -138,6 +138,21 @@ class BayesModel(Base):
 			comb_title = ":".join([curve.get_title() for curve in comb])
 
 			# Perform BayesModel sampling
-			states_summary[comb_title] = BayesModel.inference_single_state(self, comb, **kwargs)
+			basis_summary[comb_title] = BayesModel.inference_single_combination(self, comb, **kwargs)
 
-		return states_summary
+		return basis_summary
+
+	def inference_all_basis(self, **kwargs):
+		""" Infer weights for all basis sets."""
+
+		# Set empty states dictionary
+		basis_summary = {}
+
+		# Number of basis sets
+		basis_sizes = [basis_size + 2 for basis_size in range(len(self._curves) - 1)]
+
+		# Perform sampling for each basis size
+		for basis_size in basis_sizes:
+			basis_summary[basis_size] = BayesModel.inference_single_basis(self, n_states=basis_size, **kwargs)
+
+		return basis_summary
