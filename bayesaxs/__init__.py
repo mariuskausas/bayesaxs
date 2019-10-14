@@ -8,7 +8,7 @@ Python implementation of BSS-SAXS
 from __future__ import absolute_import
 
 # Add imports here
-from .bayesCurve import *
+from .bayesScatter import *
 
 # Handle versioneer
 from ._version import get_versions
