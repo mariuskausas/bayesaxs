@@ -10,4 +10,4 @@ __version__ = versions['version']
 __git_revision__ = versions['full-revisionid']
 del get_versions, versions
 
-__all__ = ["bayesScatter", "bayesCluster", "bayesModel", "bayesChi", "bayesPlots"]
+__all__ = ["bayesScatter", "bayesChi", "bayesCluster", "bayesModel", "bayesPlots"]

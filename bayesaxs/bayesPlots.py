@@ -1,4 +1,3 @@
-from bayesScatter import *
 import matplotlib.pyplot as plt
 import seaborn as sns
 

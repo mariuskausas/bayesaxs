@@ -6,7 +6,7 @@ import subprocess
 import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
-import bayesChi
+import bayesaxs.bayesChi as bayesChi
 
 
 class Base(object):

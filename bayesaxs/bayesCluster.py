@@ -4,7 +4,7 @@ from itertools import combinations
 import numpy as np
 import mdtraj as mdt
 import hdbscan
-from bayesScatter import Base
+from bayesaxs.bayesScatter import Base
 
 
 def _get_cluster_metric(metric):
