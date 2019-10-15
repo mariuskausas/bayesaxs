@@ -7,7 +7,6 @@ import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
 import bayesChi
-import bayesCluster
 
 
 class Base(object):
