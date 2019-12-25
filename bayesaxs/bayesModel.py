@@ -1,7 +1,7 @@
 from itertools import combinations
 import numpy as np
 import pymc3 as pm
-from bayesaxs.bayesScatter import Base
+from .bayesScatter import Base
 import bayesaxs.bayesChi as bayesChi
 
 
