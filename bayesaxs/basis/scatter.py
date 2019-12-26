@@ -3,42 +3,13 @@ import re
 import glob
 import shutil
 import subprocess
+
 import numpy as np
 import scipy.cluster.hierarchy as sch
 from scipy.spatial.distance import pdist, squareform
-import bayesaxs.bayesChi as bayesChi
 
-
-class Base(object):
-
-	def __init__(self, title="Unnamed"):
-		self._title = title
-		self._cwdir = os.path.join(os.getcwd(), '')
-
-	def set_title(self, title):
-		""" Set a new title for a curve."""
-		self._title = str(title).strip()
-
-	def get_title(self):
-		""" Returns a title of a curve."""
-		return self._title
-
-	def set_cwdir(self, path):
-		""" Set path for current working directory."""
-		self._cwdir = os.path.normpath(os.path.join(os.getcwd(), path, ''))
-
-	def get_cwdir(self):
-		""" Get absolute path for current working directory."""
-		return self._cwdir
-
-	@staticmethod
-	def _mkdir(dir_name):
-		""" Create a directory."""
-		if os.path.isdir(dir_name):
-			print("Such folder already exists: {name}".format(name=dir_name))
-			return
-		else:
-			os.mkdir(dir_name)
+import bayesaxs.basis.chi as chi
+from bayesaxs.base import Base
 
 
 class Curve(Base):
@@ -226,7 +197,7 @@ class Scatter(Base):
 
 	def calc_pairwise_chi_matrix(self):
 		""" Calculate a pairwise reduced chi square matrix for a set of fits."""
-		self._pairwise_chi_matrix = bayesChi._pairwise_chi(self._fit_list)
+		self._pairwise_chi_matrix = chi._pairwise_chi(self._fit_list)
 
 	def get_pairwise_chi_matrix(self):
 		""" Get a pairwise chi square matrix between theoretical scattering curves."""
@@ -335,7 +306,7 @@ class Scatter(Base):
 			clusterid_curves = [self._fit_list[i] for i in clusterid_set]
 
 			# Calculate a pair-wise chi matrix
-			pairwise_chi = bayesChi._pairwise_chi(clusterid_curves)
+			pairwise_chi = chi._pairwise_chi(clusterid_curves)
 
 			# Extract a representative member (convert a list to an array, pass a boolean np array for indexing)
 			repfit_of_clusterid = np.array(clusterid_set)[Scatter._repr_distmat(pairwise_chi)][0]
