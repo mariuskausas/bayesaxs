@@ -19,6 +19,7 @@ class Base(object):
 
 	def __init__(self, title="Unnamed"):
 		""" Create a new Base object."""
+
 		self._title = title
 		self._cwdir = os.path.join(os.getcwd(), '')
 
@@ -30,6 +31,7 @@ class Base(object):
 		title : str
 			Title of the object.
 		"""
+
 		self._title = str(title).strip()
 		return
 
@@ -41,6 +43,7 @@ class Base(object):
 		out : str
 			Title of the object.
 		"""
+
 		return self._title
 
 	def set_cwdir(self, path):
@@ -51,6 +54,7 @@ class Base(object):
 		path : str
 			Path of current working directory.
 		"""
+
 		self._cwdir = os.path.normpath(os.path.join(os.getcwd(), path, ''))
 		return
 
@@ -62,6 +66,7 @@ class Base(object):
 		out : str
 			Path of current working directory.
 		"""
+
 		return self._cwdir
 
 	@staticmethod
@@ -73,6 +78,7 @@ class Base(object):
 		dir_name : str
 			Name of the directory.
 		"""
+
 		if os.path.isdir(dir_name):
 			print("Such folder already exists: {name}".format(name=dir_name))
 			return

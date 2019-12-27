@@ -3,30 +3,108 @@ import theano as tt
 
 
 def _chi2_np(exp, theor, sigma):
-	""" Calculate chi squared (numpy method)."""
-	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
-	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
+	""" Calculate chi squared (numpy method).
+
+	Catches division by zero errors. First do the division,
+	then provide a zero array with the same size as the original array.
+	Finish by populating zero array with values
+	and skip those that had a zero in a denominator.
+
+	Parameters
+	----------
+	exp : array
+		Numpy array (N, 1) of experimental intensities.
+	theor : array
+		Numpy array (N, 1) of theoretical intensities.
+	sigma : array
+		Numpy array (N, 1) of experimental errors.
+
+	Returns
+	-------
+	chi2 : float
+		Chi squared value.
+	"""
+
 	chi2 = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp-theor), where=sigma != 0), 2))
 	return chi2
 
 
 def _chi2red_np(exp, theor, sigma):
-	""" Calculate reduced chi squared (numpy method)."""
-	# Catch division by zero errors. First do the division, then provide a zero array with the same size as the
-	# original array. Finish by populating zero array with values and skip those that had a zero in a denominator.
+	""" Calculate reduced chi squared (numpy method).
+
+	Catches division by zero errors. First do the division,
+	then provide a zero array with the same size as the original array.
+	Finish by populating zero array with values
+	and skip those that had a zero in a denominator.
+
+	Parameters
+	----------
+	exp : array
+		Numpy array (N, 1) of experimental intensities.
+	theor : array
+		Numpy array (N, 1) of theoretical intensities.
+	sigma : array
+		Numpy array (N, 1) of experimental errors.
+
+	Returns
+	-------
+	chi2red : float
+		Reduced chi squared value.
+	"""
+
 	nominator = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp-theor), where=sigma != 0), 2))
 	chi2red = np.divide(nominator, (exp.size - 1))
 	return chi2red
 
 
 def _chi2_tt(exp, theor, sigma):
-	""" Calculate chi squared (theano method)."""
+	""" Calculate chi squared (Theano method).
+
+	This implementation is specific for PyMC3 sampling.
+
+	This implementation does not catch division by zeros.
+
+	Parameters
+	----------
+	exp : array
+		Numpy array (N, 1) of experimental intensities.
+	theor : array
+		Numpy array (N, 1) of theoretical intensities.
+	sigma : array
+		Numpy array (N, 1) of experimental errors.
+
+	Returns
+	-------
+	chi2 : tensor
+		Chi squared value.
+	"""
+
 	chi2 = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
 	return chi2
 
 
 def _chi2red_tt(exp, theor, sigma):
-	""" Calculate reduced chi squared (theano method)."""
+	""" Calculate reduced chi squared (Theano method).
+
+	This implementation is specific for PyMC3 sampling.
+
+	This implementation does not catch division by zeros.
+
+	Parameters
+	----------
+	exp : array
+		Numpy array (N, 1) of experimental intensities.
+	theor : array
+		Numpy array (N, 1) of theoretical intensities.
+	sigma : array
+		Numpy array (N, 1) of experimental errors.
+
+	Returns
+	-------
+	chi2red : tensor
+		Reduced chi squared value.
+	"""
+
 	chi2red = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2)) / (exp.size - 1)
 	return chi2red
 
@@ -34,8 +112,14 @@ def _chi2red_tt(exp, theor, sigma):
 def _pairwise_chi(curves):
 	""" Calculate a pairwise reduced chi squared matrix.
 
-	:param curves: A list containing curves to iterate over.
-	:return: An array containing pairwise reduced chi squared values.
+	Parameters
+	----------
+	curves : List of Curve objects.
+
+	Returns
+	-------
+	out : array
+		Numpy array (N, N) containing pairwise reduced chi squared values.
 	"""
 
 	# Generate an empty array (n,n) for a given n of curves
