@@ -32,7 +32,6 @@ class Curve(Base):
 
 	def __init__(self, path_to_file, title="Unnamed"):
 		""" Create a new Curve object."""
-
 		Base.__init__(self, title=title)
 		self._path_to_file = path_to_file
 		self._curve_data = np.loadtxt(path_to_file, skiprows=1)
