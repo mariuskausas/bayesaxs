@@ -173,9 +173,9 @@ class Scatter(Base):
 		dro : int
 			Contrast of hydration shell.
 		err : bool
-			Write experimental errors to the .fit file.
+			Write experimental errors to the .fit file. Set to True by default.
 		cst : bool
-			Constant subtraction.
+			Constant subtraction. Set to True by default.
 
 		Returns
 		-------
@@ -246,9 +246,9 @@ class Scatter(Base):
 		dro : int
 			Contrast of hydration shell.
 		err : bool
-			Write experimental errors to the .fit file.
+			Write experimental errors to the .fit file. Set to True by default.
 		cst : bool
-			Constant subtraction.
+			Constant subtraction. Set to True by default.
 		"""
 
 		# Create a directory to store CRYSOL fits
