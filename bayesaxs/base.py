@@ -17,8 +17,7 @@ class Base(object):
 	"""
 
 	def __init__(self, title="Unnamed"):
-		"""
-		Create a new Base object."""
+		""" Create a new Base object."""
 
 		self._title = title
 		self._cwdir = os.path.join(os.getcwd(), '')
@@ -34,6 +33,7 @@ class Base(object):
 		"""
 
 		self._title = str(title).strip()
+
 		return
 
 	def get_title(self):

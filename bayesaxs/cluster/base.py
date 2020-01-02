@@ -238,6 +238,8 @@ class BaseCluster(Trajectory):
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
+		return
+
 	def get_path_to_traj_clusters(self):
 		"""
 		Get path to trajectory clusters.
