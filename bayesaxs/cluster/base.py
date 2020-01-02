@@ -109,8 +109,22 @@ def _cluster_drid(traj, atom_selection):
 
 
 class Trajectory(Base):
+	""" Basic container for molecular dynamics trajectory.
+
+	The Trajectory object allows loading trajectory and inspecting
+	loaded topology and trajectory file.
+
+	Attributes
+	----------
+	pdb : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj .pdb topology object.
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	"""
 
 	def __init__(self):
+		""" Create a new Trajectory object."""
+
 		Base.__init__(self)
 		self._pdb = None
 		self._traj = None
@@ -119,16 +133,43 @@ class Trajectory(Base):
 		return "Trajectory: {}".format(self._traj)
 
 	def load_traj(self, pdb_path, traj_path, stride=1):
-		""" Load a trajectory."""
+		""" Load a molecular trajectory.
+
+		Parameters
+		----------
+		pdb_path : str
+			Path to topology .pdb file.
+		traj_path : str
+			Path to trajectory (mdtraj supported extensions).
+		stride : int
+			Skip through a trajectory. Default set to 1.
+		"""
+
 		self._pdb = mdt.load_pdb(pdb_path)
 		self._traj = mdt.load(traj_path, top=pdb_path, stride=stride)
 
+		return
+
 	def get_pdb(self):
-		""" Return loaded .pdb topology."""
+		""" Return loaded .pdb topology.
+
+		Returns
+		-------
+		pdb : mdtraj.core.trajectory.Trajectory object
+			Loaded mdtraj .pdb topology object.
+		"""
+
 		return self._pdb
 
 	def get_traj(self):
-		"""Return loaded trajectory."""
+		"""Return loaded trajectory.
+
+		Returns
+		-------
+		traj : mdtraj.core.trajectory.Trajectory object
+			Loaded mdtraj trajectory.
+		"""
+
 		return self._traj
 
 

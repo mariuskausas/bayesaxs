@@ -25,7 +25,7 @@ def _chi2_np(exp, theor, sigma):
 		Chi squared value.
 	"""
 
-	chi2 = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp-theor), where=sigma != 0), 2))
+	chi2 = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp - theor), where=sigma != 0), 2))
 	return chi2
 
 
@@ -52,7 +52,7 @@ def _chi2red_np(exp, theor, sigma):
 		Reduced chi squared value.
 	"""
 
-	nominator = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp-theor), where=sigma != 0), 2))
+	nominator = np.sum(np.power(np.divide((exp - theor), sigma, out=np.zeros_like(exp - theor), where=sigma != 0), 2))
 	chi2red = np.divide(nominator, (exp.size - 1))
 	return chi2red
 
