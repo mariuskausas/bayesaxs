@@ -108,6 +108,8 @@ class Scatter(Base):
 		"""
 		Get representative cluster leaders.
 
+		Returns
+		-------
 		out : list
 			A list of strings, where each string denotes a path to a leader.
 		"""
@@ -119,6 +121,8 @@ class Scatter(Base):
 		"""
 		Extract integer out from a file name.
 
+		Returns
+		-------
 		out : str
 			Integer as a string.
 		"""
