@@ -3,7 +3,8 @@ import theano as tt
 
 
 def _chi2_np(exp, theor, sigma):
-	""" Calculate chi squared (numpy method).
+	"""
+	Calculate chi squared (numpy method).
 
 	Catches division by zero errors. First do the division,
 	then provide a zero array with the same size as the original array.
@@ -30,7 +31,8 @@ def _chi2_np(exp, theor, sigma):
 
 
 def _chi2red_np(exp, theor, sigma):
-	""" Calculate reduced chi squared (numpy method).
+	"""
+	Calculate reduced chi squared (numpy method).
 
 	Catches division by zero errors. First do the division,
 	then provide a zero array with the same size as the original array.
@@ -58,7 +60,8 @@ def _chi2red_np(exp, theor, sigma):
 
 
 def _chi2_tt(exp, theor, sigma):
-	""" Calculate chi squared (Theano method).
+	"""
+	Calculate chi squared (Theano method).
 
 	This implementation is specific for PyMC3 sampling.
 
@@ -84,7 +87,8 @@ def _chi2_tt(exp, theor, sigma):
 
 
 def _chi2red_tt(exp, theor, sigma):
-	""" Calculate reduced chi squared (Theano method).
+	"""
+	Calculate reduced chi squared (Theano method).
 
 	This implementation is specific for PyMC3 sampling.
 
@@ -110,7 +114,8 @@ def _chi2red_tt(exp, theor, sigma):
 
 
 def _pairwise_chi(curves):
-	""" Calculate a pairwise reduced chi squared matrix.
+	"""
+	Calculate a pairwise reduced chi squared matrix.
 
 	Parameters
 	----------

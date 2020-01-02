@@ -59,7 +59,8 @@ def _cluster_xyz(traj, atom_selection):
 
 
 def _cluster_distances(traj, atom_selection):
-	""" Calculate pair-wise atom distances of a trajectory for clustering.
+	"""
+	Calculate pair-wise atom distances of a trajectory for clustering.
 
 	Pair-wise distances are calculated using mdtraj.compute_distances().
 
@@ -84,7 +85,8 @@ def _cluster_distances(traj, atom_selection):
 
 
 def _cluster_drid(traj, atom_selection):
-	""" Calulate DRID representation of a trajectory for clustering.
+	"""
+	Calulate DRID representation of a trajectory for clustering.
 
 	DRID distances are calculated using mdtraj.compute_drid().
 
@@ -100,7 +102,6 @@ def _cluster_drid(traj, atom_selection):
 	drid_distances : array
 		Numpy array (M, N). M equals number of frames.
 		N equals number of computed DRID distances.
-
 	"""
 
 	drid_distances = mdt.compute_drid(traj=traj, atom_indices=atom_selection)
@@ -109,7 +110,8 @@ def _cluster_drid(traj, atom_selection):
 
 
 class Trajectory(Base):
-	""" Basic container for molecular dynamics trajectory.
+	"""
+	Basic container for molecular dynamics trajectory.
 
 	The Trajectory object allows loading trajectory and inspecting
 	loaded topology and trajectory file.
@@ -133,7 +135,8 @@ class Trajectory(Base):
 		return "Trajectory: {}".format(self._traj)
 
 	def load_traj(self, pdb_path, traj_path, stride=1):
-		""" Load a molecular trajectory.
+		"""
+		Load a molecular trajectory.
 
 		Parameters
 		----------
@@ -151,7 +154,8 @@ class Trajectory(Base):
 		return
 
 	def get_pdb(self):
-		""" Return loaded .pdb topology.
+		"""
+		Return loaded .pdb topology.
 
 		Returns
 		-------
@@ -162,7 +166,8 @@ class Trajectory(Base):
 		return self._pdb
 
 	def get_traj(self):
-		""" Return loaded trajectory.
+		"""
+		Return loaded trajectory.
 
 		Returns
 		-------
@@ -205,7 +210,8 @@ class BaseCluster(Trajectory):
 		self._leader_set = None
 
 	def get_cluster_labels(self):
-		""" Return cluster labels for each frame in a trajectory.
+		"""
+		Return cluster labels for each frame in a trajectory.
 
 		Returns
 		-------
@@ -216,7 +222,8 @@ class BaseCluster(Trajectory):
 		return self._cluster_labels
 
 	def save_traj_clusters(self):
-		"""Save each cluster as .xtc trajectory.
+		"""
+		Save each cluster as .xtc trajectory.
 
 		The function creates a directory with trajectory clusters.
 		"""
@@ -230,7 +237,8 @@ class BaseCluster(Trajectory):
 			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
 	def get_path_to_traj_clusters(self):
-		""" Get path to trajectory clusters.
+		"""
+		Get path to trajectory clusters.
 
 		Returns
 		-------
@@ -242,7 +250,8 @@ class BaseCluster(Trajectory):
 
 	@staticmethod
 	def _extract_leader(top, traj, trajnum, output_dir):
-		""" Extract a representative conformer (leader) from a given single cluster trajectory.
+		"""
+		Extract a representative conformer (leader) from a given single cluster trajectory.
 
 		Leader extraction is performed by calculating RMSD between frames and
 		selecting a frame with lowest RMSD to other structures.
@@ -278,7 +287,8 @@ class BaseCluster(Trajectory):
 		return
 
 	def save_cluster_leaders(self):
-		"""Save cluster leader from each cluster trajectories.
+		"""
+		Save cluster leader from each cluster trajectories.
 
 		The function creates a directory with extracted representative cluster leaders.
 		"""
@@ -301,7 +311,8 @@ class BaseCluster(Trajectory):
 		return
 
 	def get_path_to_cluster_leaders(self):
-		""" Get path to cluster leader directory.
+		"""
+		Get path to cluster leader directory.
 
 		Returns
 		-------
@@ -312,7 +323,8 @@ class BaseCluster(Trajectory):
 		return self._cluster_leader_dir
 
 	def get_cluster_leaders(self):
-		""" Get cluster leaders.
+		"""
+		Get cluster leaders.
 
 		Returns
 		-------

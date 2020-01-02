@@ -14,17 +14,18 @@ class Base(object):
 		Title of the object.
 	cwdir : str
 		Current working directory.
-
 	"""
 
 	def __init__(self, title="Unnamed"):
-		""" Create a new Base object."""
+		"""
+		Create a new Base object."""
 
 		self._title = title
 		self._cwdir = os.path.join(os.getcwd(), '')
 
 	def set_title(self, title):
-		""" Set a new title for a curve.
+		"""
+		Set a new title for a curve.
 
 		Parameters
 		-------
@@ -36,7 +37,8 @@ class Base(object):
 		return
 
 	def get_title(self):
-		""" Returns a title of a curve.
+		"""
+		Returns a title of a curve.
 
 		Returns
 		-------
@@ -47,7 +49,8 @@ class Base(object):
 		return self._title
 
 	def set_cwdir(self, path):
-		""" Set path for current working directory.
+		"""
+		Set path for current working directory.
 
 		Parameters
 		----------
@@ -59,7 +62,8 @@ class Base(object):
 		return
 
 	def get_cwdir(self):
-		""" Get path for current working directory.
+		"""
+		Get path for current working directory.
 
 		Returns
 		-------
@@ -71,7 +75,8 @@ class Base(object):
 
 	@staticmethod
 	def _mkdir(dir_name):
-		""" Create a directory.
+		"""
+		Create a directory.
 
 		Parameters
 		----------
