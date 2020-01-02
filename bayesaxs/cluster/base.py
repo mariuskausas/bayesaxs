@@ -140,7 +140,7 @@ class Trajectory(Base):
 		pdb_path : str
 			Path to topology .pdb file.
 		traj_path : str
-			Path to trajectory (mdtraj supported extensions).
+			Path to trajectory file (mdtraj supported extensions).
 		stride : int
 			Skip through a trajectory. Default set to 1.
 		"""
@@ -162,7 +162,7 @@ class Trajectory(Base):
 		return self._pdb
 
 	def get_traj(self):
-		"""Return loaded trajectory.
+		""" Return loaded trajectory.
 
 		Returns
 		-------
@@ -174,21 +174,52 @@ class Trajectory(Base):
 
 
 class BaseCluster(Trajectory):
+	"""
+	Object for accessing generic clustering functions.
+
+	The generic functions allow to interact with clustering results, such as cluster labels.
+	In addition, one can save trajectory clusters and extract cluster leaders.
+
+	Attributes
+	----------
+	cwdir : str
+		Path to current working directory.
+	cluster_labels : array
+		Numpy array (N, ) of cluster labels. N equals to number of frames.
+	traj_cluster_dir : str
+		Path to trajectory clusters directory.
+	cluster_leader_dir : str
+		Path to cluster leaders directory.
+	leader_set : list
+		A list of strings, where each string denotes a path to a leader.
+	"""
 
 	def __init__(self):
+		""" Create a new BaseCluster object."""
+
 		Trajectory.__init__(self)
-		self._cwdir = os.path.join(os.getcwd(), '')
+		self._cwdir = Trajectory.get_cwdir()
 		self._cluster_labels = None
 		self._traj_cluster_dir = None
 		self._cluster_leader_dir = None
 		self._leader_set = None
 
 	def get_cluster_labels(self):
-		""" Return cluster labels for each frame in a trajectory."""
+		""" Return cluster labels for each frame in a trajectory.
+
+		Returns
+		-------
+		cluster_labels : array
+			Numpy array (N, ) of cluster labels. N equals to number of frames.
+		"""
+
 		return self._cluster_labels
 
 	def save_traj_clusters(self):
-		"""Save each cluster as .xtc trajectory."""
+		"""Save each cluster as .xtc trajectory.
+
+		The function creates a directory with trajectory clusters.
+		"""
 
 		# Create a directory where to put cluster trajectories
 		self._traj_cluster_dir = os.path.join(self._cwdir, self._title + "_traj_clusters", '')
@@ -199,16 +230,37 @@ class BaseCluster(Trajectory):
 			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
 	def get_path_to_traj_clusters(self):
-		""" Get path to trajectory clusters."""
+		""" Get path to trajectory clusters.
+
+		Returns
+		-------
+		traj_cluster_dir : str
+			Path to trajectory clusters directory.
+		"""
+
 		return self._traj_cluster_dir
 
 	@staticmethod
 	def _extract_leader(top, traj, trajnum, output_dir):
+		""" Extract a representative conformer (leader) from a given single cluster trajectory.
+
+		Leader extraction is performed by calculating RMSD between frames and
+		selecting a frame with lowest RMSD to other structures.
+
+		Parameters
+		----------
+		top : str
+			Path to the topology .pdb file.
+		traj : str
+			Path to the trajectory file (mdtraj supported extensions).
+		trajnum : int
+			Number of the trajectory.
+		output_dir : str
+			Path to output directory to save trajectory clusters.
 		"""
-		Extract a representative conformer from a given single cluster trajectory. """
 
 		# Load the trajectory
-		traj = mdt.load(traj, top=top, stride=1)
+		traj = mdt.load(traj, top=top)
 		nframes = traj.n_frames
 
 		# Calculate pairwise RMSD between frames
@@ -223,14 +275,20 @@ class BaseCluster(Trajectory):
 		# Save the leader as a PDB
 		traj[leader_index].save_pdb(filename=output_dir + "cluster_leader_" + str(trajnum) + ".pdb")
 
+		return
+
 	def save_cluster_leaders(self):
-		"""Save each cluster leader as .pdb from cluster trajectories."""
+		"""Save cluster leader from each cluster trajectories.
+
+		The function creates a directory with extracted representative cluster leaders.
+		"""
 
 		# Create a directory where to put cluster leaders extracted from cluster trajectories
 		self._cluster_leader_dir = os.path.join(self._cwdir, self._title + "_cluster_leaders", '')
-		Base._mkdir(self._cluster_leader_dir)
+		Trajectory._mkdir(self._cluster_leader_dir)
 
-		# Extract a representative conformer from a given cluster trajectory. Skip HDBSCAN noise assignment (cluster -1)
+		# Extract a representative conformer from a given cluster trajectory.
+		# Skip HDBSCAN noise assignment (cluster -1)
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
 			BaseCluster._extract_leader(top=self._pdb,
 							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
@@ -240,10 +298,26 @@ class BaseCluster(Trajectory):
 		# Initialize cluster leaders PDBs
 		self._leader_set = glob.glob((self._cluster_leader_dir + "*"))
 
+		return
+
 	def get_path_to_cluster_leaders(self):
-		""" Get path to cluster leader directory."""
+		""" Get path to cluster leader directory.
+
+		Returns
+		-------
+		cluster_leader_dir : str
+			Path to cluster leader directory.
+		"""
+
 		return self._cluster_leader_dir
 
 	def get_cluster_leaders(self):
-		""" Get cluster leaders."""
+		""" Get cluster leaders.
+
+		Returns
+		-------
+		leader_set : list
+			A list of strings, where each string denotes a path to a leader.
+		"""
+
 		return self._leader_set
