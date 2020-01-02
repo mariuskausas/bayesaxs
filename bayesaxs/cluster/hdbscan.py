@@ -45,7 +45,7 @@ class HDBSCAN(BaseCluster):
 			Available options ("xyz", "distances", "DRID").
 			The "xyz" option is set by default.
 		kwargs : str
-			Additional parameters could be pass to mdtraj.compute_distances()
+			Additional parameters could be passed to mdtraj.compute_distances()
 			or mdtraj.compute_drid() functions.
 		"""
 

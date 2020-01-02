@@ -18,15 +18,15 @@ class Curve(Base):
 	----------
 	path_to_file : str
 		Full or relative path to a scattering file.
-	curve_data : array
+	curve_data : ndarray
 		Numpy array ((N, 3) or (N, 4)) describing scattering file.
-	q : array
+	q : ndarray
 		Numpy array (N, 1) of scattering angles.
-	iq : array
+	iq : ndarray
 		Numpy array (N, 1) of experimental intensities.
-	sigma : array
+	sigma : ndarray
 		Numpy array (N, 1) of experimental errors.
-	fit : array
+	fit : ndarray
 		Numpy array (N, 1) of theoretical intensities.
 	"""
 
@@ -61,7 +61,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out : array
+		out : ndarray
 			Numpy array ((N, 3) or (N, 4)) describing scattering file.
 		"""
 
@@ -73,7 +73,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out: array
+		out: ndarray
 			Numpy array (N, 1) of scattering angles.
 		"""
 
@@ -85,7 +85,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out: array
+		out: ndarray
 			Numpy array (N, 1) of experimental intensities.
 		"""
 
@@ -97,7 +97,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out : array
+		out : ndarray
 			Numpy array (N, 1) of log10 experimental intensities.
 		"""
 
@@ -109,7 +109,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out : array
+		out : ndarray
 			Numpy array (N, 1) of experimental errors.
 		"""
 
@@ -121,7 +121,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out : array
+		out : ndarray
 			Numpy array (N, 1) of theoretical intensities.
 		"""
 
@@ -133,7 +133,7 @@ class Curve(Base):
 
 		Returns
 		-------
-		out : array
+		out : ndarray
 			Numpy array (N, 1) of log10 theoretical intensities.
 		"""
 

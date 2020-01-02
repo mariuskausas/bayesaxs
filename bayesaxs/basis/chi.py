@@ -13,11 +13,11 @@ def _chi2_np(exp, theor, sigma):
 
 	Parameters
 	----------
-	exp : array
+	exp : ndarray
 		Numpy array (N, 1) of experimental intensities.
-	theor : array
+	theor : ndarray
 		Numpy array (N, 1) of theoretical intensities.
-	sigma : array
+	sigma : ndarray
 		Numpy array (N, 1) of experimental errors.
 
 	Returns
@@ -41,11 +41,11 @@ def _chi2red_np(exp, theor, sigma):
 
 	Parameters
 	----------
-	exp : array
+	exp : ndarray
 		Numpy array (N, 1) of experimental intensities.
-	theor : array
+	theor : ndarray
 		Numpy array (N, 1) of theoretical intensities.
-	sigma : array
+	sigma : ndarray
 		Numpy array (N, 1) of experimental errors.
 
 	Returns
@@ -69,11 +69,11 @@ def _chi2_tt(exp, theor, sigma):
 
 	Parameters
 	----------
-	exp : array
+	exp : ndarray
 		Numpy array (N, 1) of experimental intensities.
-	theor : array
+	theor : ndarray
 		Numpy array (N, 1) of theoretical intensities.
-	sigma : array
+	sigma : ndarray
 		Numpy array (N, 1) of experimental errors.
 
 	Returns
@@ -96,11 +96,11 @@ def _chi2red_tt(exp, theor, sigma):
 
 	Parameters
 	----------
-	exp : array
+	exp : ndarray
 		Numpy array (N, 1) of experimental intensities.
-	theor : array
+	theor : ndarray
 		Numpy array (N, 1) of theoretical intensities.
-	sigma : array
+	sigma : ndarray
 		Numpy array (N, 1) of experimental errors.
 
 	Returns
@@ -119,12 +119,13 @@ def _pairwise_chi(curves):
 
 	Parameters
 	----------
-	curves : List of Curve objects.
+	curves : List of bayesaxs.basis.scatter.Curve objects.
 
 	Returns
 	-------
-	out : array
-		Numpy array (N, N) containing pairwise reduced chi squared values.
+	out : ndarray
+		Numpy array (N, N) containing pairwise reduced chi squared values,
+		where N is the number of fits.
 	"""
 
 	# Generate an empty array (n,n) for a given n of curves

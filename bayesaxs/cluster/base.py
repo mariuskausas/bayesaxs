@@ -9,7 +9,8 @@ from bayesaxs.base import Base
 
 
 def _get_cluster_metric(metric):
-	""" Get a clustering metric.
+	"""
+	Get a clustering metric.
 
 	Following metrics are available:
 		1) xyz - cluster using xyz coordinates.
@@ -34,18 +35,19 @@ def _get_cluster_metric(metric):
 
 
 def _cluster_xyz(traj, atom_selection):
-	""" Prepare input of XYZ coordinates for clustering.
+	"""
+	Prepare input of XYZ coordinates for clustering.
 
 	Parameters
 	----------
 	traj : mdtraj.core.trajectory.Trajectory object
 		Loaded mdtraj trajectory.
-	atom_selection : array
+	atom_selection : ndarray
 		Numpy array (N, ) containing indices of atoms.
 
 	Returns
 	-------
-	reshaped_xyz : array
+	reshaped_xyz : ndarray
 		Numpy array (frames, atoms * 3) of reshaped XYZ coordinates.
 	"""
 
@@ -68,12 +70,12 @@ def _cluster_distances(traj, atom_selection):
 	----------
 	traj : mdtraj.core.trajectory.Trajectory object
 		Loaded mdtraj trajectory.
-	atom_selection : array
+	atom_selection : ndarray
 		Numpy array (N, ) containing indices of atoms.
 
 	Returns
 	-------
-	pairwise_distances : array
+	pairwise_distances : ndarray
 		Numpy array (M, N). M equals number of frames.
 		N equals 2 chooses k, where k is the number of atoms.
 	"""
@@ -94,12 +96,12 @@ def _cluster_drid(traj, atom_selection):
 	----------
 	traj : mdtraj.core.trajectory.Trajectory object
 		Loaded mdtraj trajectory.
-	atom_selection : array
+	atom_selection : ndarray
 		Numpy array (N, ) containing indices of atoms.
 
 	Returns
 	-------
-	drid_distances : array
+	drid_distances : ndarray
 		Numpy array (M, N). M equals number of frames.
 		N equals number of computed DRID distances.
 	"""
@@ -111,7 +113,7 @@ def _cluster_drid(traj, atom_selection):
 
 class Trajectory(Base):
 	"""
-	Basic container for molecular dynamics trajectory.
+	Basic container for molecular dynamics trajectories.
 
 	The Trajectory object allows loading trajectory and inspecting
 	loaded topology and trajectory file.
@@ -189,7 +191,7 @@ class BaseCluster(Trajectory):
 	----------
 	cwdir : str
 		Path to current working directory.
-	cluster_labels : array
+	cluster_labels : ndarray
 		Numpy array (N, ) of cluster labels. N equals to number of frames.
 	traj_cluster_dir : str
 		Path to trajectory clusters directory.
@@ -215,7 +217,7 @@ class BaseCluster(Trajectory):
 
 		Returns
 		-------
-		cluster_labels : array
+		cluster_labels : ndarray
 			Numpy array (N, ) of cluster labels. N equals to number of frames.
 		"""
 
