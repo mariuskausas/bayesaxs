@@ -9,34 +9,102 @@ from bayesaxs.base import Base
 
 
 def _get_cluster_metric(metric):
-	""" Get metrics for clustering."""
-	cluster_metrics = {"xyz": _cluster_XYZ,
+	""" Get a clustering metric.
+
+	Following metrics are available:
+		1) xyz - cluster using xyz coordinates.
+		2) distances - cluster on pairwise inter-atom distances.
+		3) DRID - cluster using DRID distances.
+
+	For effective clustering using xyz coordinates,
+	a rotational and translational movements of a trajectory
+	should be removed prior.
+
+	Returns
+	-------
+	out : function
+		Clustering metric function.
+	"""
+
+	cluster_metrics = {"xyz": _cluster_xyz,
 				"distances": _cluster_distances,
 				"DRID": _cluster_drid}
+
 	return cluster_metrics[metric]
 
 
-def _cluster_XYZ(traj, atom_selection):
-	""" Prepare XYZ coordinates of a trajectory for clustering."""
+def _cluster_xyz(traj, atom_selection):
+	""" Prepare input of XYZ coordinates for clustering.
+
+	Parameters
+	----------
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	atom_selection : array
+		Numpy array (N, ) containing indices of atoms.
+
+	Returns
+	-------
+	reshaped_xyz : array
+		Numpy array (frames, atoms * 3) of reshaped XYZ coordinates.
+	"""
+
 	temp = traj.xyz[:, atom_selection]
 	frames = temp.shape[0]
 	atoms = temp.shape[1]
-	reshaped_XYZ = temp.reshape((frames, atoms * 3))
-	reshaped_XYZ = reshaped_XYZ.astype("float64")
-	temp = []
-	return reshaped_XYZ
+	reshaped_xyz = temp.reshape((frames, atoms * 3))
+	reshaped_xyz = reshaped_xyz.astype("float64")
+
+	return reshaped_xyz
 
 
 def _cluster_distances(traj, atom_selection):
-	""" Calculate pair-wise atom distances of a trajectory for clustering."""
+	""" Calculate pair-wise atom distances of a trajectory for clustering.
+
+	Pair-wise distances are calculated using mdtraj.compute_distances().
+
+	Parameters
+	----------
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	atom_selection : array
+		Numpy array (N, ) containing indices of atoms.
+
+	Returns
+	-------
+	pairwise_distances : array
+		Numpy array (M, N). M equals number of frames.
+		N equals 2 chooses k, where k is the number of atoms.
+	"""
+
 	atom_pairs = list(combinations(atom_selection, 2))
 	pairwise_distances = mdt.compute_distances(traj=traj, atom_pairs=atom_pairs)
+
 	return pairwise_distances
 
 
 def _cluster_drid(traj, atom_selection):
-	""" Calulate DRID representation of a trajectory for clustering."""
+	""" Calulate DRID representation of a trajectory for clustering.
+
+	DRID distances are calculated using mdtraj.compute_drid().
+
+	Parameters
+	----------
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	atom_selection : array
+		Numpy array (N, ) containing indices of atoms.
+
+	Returns
+	-------
+	drid_distances : array
+		Numpy array (M, N). M equals number of frames.
+		N equals number of computed DRID distances.
+
+	"""
+
 	drid_distances = mdt.compute_drid(traj=traj, atom_indices=atom_selection)
+
 	return drid_distances
 
 
