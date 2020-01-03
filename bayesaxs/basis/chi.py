@@ -80,7 +80,7 @@ def _chi2_tt(exp, theor, sigma):
 
 	Returns
 	-------
-	chi2 : tensor
+	chi2 : theano.tensor
 		Chi squared value.
 	"""
 
@@ -108,7 +108,7 @@ def _chi2red_tt(exp, theor, sigma):
 
 	Returns
 	-------
-	chi2red : tensor
+	chi2red : theano.tensor
 		Reduced chi squared value.
 	"""
 

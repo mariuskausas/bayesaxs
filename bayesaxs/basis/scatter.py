@@ -17,7 +17,7 @@ class Scatter(Base):
 	"""
 	Scatter object for performing scattering analysis.
 
-	The following object allows you to perform the following:
+	The object allows you to perform the following:
 		1) Load cluster leaders or calculated cluster leader fits.
 		2) Perform CRYSOL calculation for cluster leaders.
 		3) Cluster calculated fits and select a set of representative fits.

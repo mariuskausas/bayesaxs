@@ -46,7 +46,7 @@ class Curve(Base):
 
 	def get_path_to_file(self):
 		"""
-		Return path to the scattering file.
+		Get path to the scattering file.
 
 		Returns
 		-------
@@ -57,7 +57,7 @@ class Curve(Base):
 
 	def get_curve_values(self):
 		"""
-		Return scattering curve data.
+		Get scattering curve data.
 
 		Returns
 		-------
@@ -69,7 +69,7 @@ class Curve(Base):
 
 	def get_q(self):
 		"""
-		Return q values.
+		Get q values.
 
 		Returns
 		-------
@@ -81,7 +81,7 @@ class Curve(Base):
 
 	def get_iq(self):
 		"""
-		Return experimental intensities.
+		Get experimental intensities.
 
 		Returns
 		-------
@@ -93,7 +93,7 @@ class Curve(Base):
 
 	def get_logiq(self):
 		"""
-		Return log10 of experimental intensities.
+		Get log10 of experimental intensities.
 
 		Returns
 		-------
@@ -105,7 +105,7 @@ class Curve(Base):
 
 	def get_sigma(self):
 		"""
-		Return experimental errors.
+		Get experimental errors.
 
 		Returns
 		-------
@@ -117,7 +117,7 @@ class Curve(Base):
 
 	def get_fit(self):
 		"""
-		Return fit values.
+		Get fit values.
 
 		Returns
 		-------
@@ -129,7 +129,7 @@ class Curve(Base):
 
 	def get_logfit(self):
 		"""
-		Return log10 of theoretical intensities.
+		Get log10 of theoretical intensities.
 
 		Returns
 		-------
