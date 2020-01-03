@@ -63,9 +63,9 @@ def _cluster_xyz(traj, atom_selection):
 
 def _cluster_distances(traj, atom_selection):
 	"""
-	Calculate pair-wise atom distances of a trajectory for clustering.
+	Calculate pairwise atom distances of a trajectory for clustering.
 
-	Pair-wise distances are calculated using mdtraj.compute_distances().
+	Pairwise distances are calculated using mdtraj.compute_distances().
 
 	Parameters
 	----------
@@ -113,6 +113,22 @@ def _cluster_drid(traj, atom_selection):
 
 
 def _get_extract_metric(metric):
+	"""
+	Get metric for extracting representative trajectory cluster leader.
+
+	Following metrics are used to calculate RMSD scores:
+		1) xyz - xyz coordinates.
+		2) distances - cluster on pairwise inter-atom distances.
+
+	For effective extraction of a representative trajectory cluster leader,
+	while using xyz, a rotational and translational movements
+	of a trajectory should be removed prior.
+
+	Returns
+	-------
+	out : function
+		Extraction metric function.
+	"""
 
 	extract_metrics = {"xyz": _extract_xyz,
 				"distances": _extract_distances
@@ -122,6 +138,24 @@ def _get_extract_metric(metric):
 
 
 def _extract_xyz(top, traj, atom_selection):
+	"""
+	Calculate pairwise frame RMSD using XYZ coordinates.
+
+	Parameters
+	----------
+	top : str
+		Path to the topology .pdb file.
+	traj : str
+		Path to the trajectory file (mdtraj supported extensions).
+	atom_selection : ndarray
+		Numpy array (N, ) containing indices of atoms.
+
+	Returns
+	-------
+	out : ndarray
+		Numpy matrix (N, N) with pairwise frame RMSD values,
+		where N equals the number of frames.
+	"""
 
 	# Load the trajectory
 	traj = mdt.load(traj, top=top)
@@ -140,11 +174,29 @@ def _extract_xyz(top, traj, atom_selection):
 
 
 def _extract_distances(top, traj, atom_selection):
+	"""
+	Calculate pairwise atom distance RMSD between frames.
+
+	Parameters
+	----------
+	top : str
+		Path to the topology .pdb file.
+	traj : str
+		Path to the trajectory file (mdtraj supported extensions).
+	atom_selection : ndarray
+		Numpy array (N, ) containing indices of atoms.
+
+	Returns
+	-------
+	out : ndarray
+		Numpy array (N, N) with pairwise atom distance RMSD between frames,
+		where N equals the number of frames.
+	"""
 
 	# Load the trajectory
 	traj = mdt.load(traj, top=top)
 
-	# Calculate pairwise distance RMSD between frames
+	# Calculate pairwise atom distance RMSD between frames
 	pairwise_distances = mdt.compute_distances(traj=traj, atom_pairs=atom_selection)
 	rmsd_mat = Scatter._repr_distmat(pairwise_distances)
 
@@ -160,7 +212,7 @@ class Trajectory(Base):
 
 	Attributes
 	----------
-	pdb : mdtraj.core.trajectory.Trajectory object
+	top : mdtraj.core.trajectory.Trajectory object
 		Loaded mdtraj .pdb topology object.
 	traj : mdtraj.core.trajectory.Trajectory object
 		Loaded mdtraj trajectory.
@@ -170,19 +222,19 @@ class Trajectory(Base):
 		""" Create a new Trajectory object."""
 
 		Base.__init__(self)
-		self._pdb = None
+		self._top = None
 		self._traj = None
 
 	def __repr__(self):
 		return "Trajectory: {}".format(self._traj)
 
-	def load_traj(self, pdb_path, traj_path, stride=1):
+	def load_traj(self, top_path, traj_path, stride=1):
 		"""
 		Load a molecular trajectory.
 
 		Parameters
 		----------
-		pdb_path : str
+		top_path : str
 			Path to topology .pdb file.
 		traj_path : str
 			Path to trajectory file (mdtraj supported extensions).
@@ -190,22 +242,22 @@ class Trajectory(Base):
 			Skip through a trajectory. Default set to 1.
 		"""
 
-		self._pdb = mdt.load_pdb(pdb_path)
-		self._traj = mdt.load(traj_path, top=pdb_path, stride=stride)
+		self._top = mdt.load_pdb(top_path)
+		self._traj = mdt.load(traj_path, top=top_path, stride=stride)
 
 		return
 
-	def get_pdb(self):
+	def get_top(self):
 		"""
 		Return loaded .pdb topology.
 
 		Returns
 		-------
-		pdb : mdtraj.core.trajectory.Trajectory object
+		top : mdtraj.core.trajectory.Trajectory object
 			Loaded mdtraj .pdb topology object.
 		"""
 
-		return self._pdb
+		return self._top
 
 	def get_traj(self):
 		"""
@@ -295,7 +347,7 @@ class BaseCluster(Trajectory):
 	@staticmethod
 	def _extract_leader(top, traj, extract_metric, atom_selection, trajnum, output_dir):
 		"""
-		Extract a representative conformer (leader) from a given single cluster trajectory.
+		Extract a representative leader from a given single cluster trajectory.
 
 		Leader extraction is performed by calculating RMSD between frames and
 		selecting a frame with lowest RMSD to other structures.
@@ -342,7 +394,7 @@ class BaseCluster(Trajectory):
 		# Extract a representative conformer from a given cluster trajectory.
 		# Skip HDBSCAN noise assignment (cluster -1)
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
-			BaseCluster._extract_leader(top=self._pdb,
+			BaseCluster._extract_leader(pdb=self._pdb,
 							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							extract_metric=extract_metric,
 							atom_selection=atom_selection,
