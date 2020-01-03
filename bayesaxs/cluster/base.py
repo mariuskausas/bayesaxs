@@ -197,7 +197,8 @@ def _extract_distances(top, traj, atom_selection):
 	traj = mdt.load(traj, top=top)
 
 	# Calculate pairwise atom distance RMSD between frames
-	pairwise_distances = mdt.compute_distances(traj=traj, atom_pairs=atom_selection)
+	atom_pairs = list(combinations(atom_selection, 2))
+	pairwise_distances = mdt.compute_distances(traj=traj, atom_pairs=atom_pairs)
 	rmsd_mat = Scatter._repr_distmat(pairwise_distances)
 
 	return rmsd_mat
