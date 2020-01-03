@@ -208,7 +208,7 @@ class Sampler(Base):
 		sd = self._pm_trace['w'].std(axis=0)
 
 		# Calculate the optimized curve
-		opt_curve = np.sum([(self._curves[i].get_fit() * weights[i]) for i in range(self._shape)], axis=0)
+		opt_curve = Sampler._weighted_curve(curves=self._curves, weights=weights, shape=self._shape)
 
 		# Calculate chi2red for an optimized curve
 		opt_chi2red = chi._chi2red_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
