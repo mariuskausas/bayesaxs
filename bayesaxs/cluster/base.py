@@ -6,6 +6,7 @@ import numpy as np
 import mdtraj as mdt
 
 from bayesaxs.base import Base
+from bayesaxs.basis.scatter import Scatter
 
 
 def _get_cluster_metric(metric):
@@ -109,6 +110,41 @@ def _cluster_drid(traj, atom_selection):
 	drid_distances = mdt.compute_drid(traj=traj, atom_indices=atom_selection)
 
 	return drid_distances
+
+
+def _get_extract_metric(metric):
+
+	extract_metrics = {"xyz": _extract_xyz,
+				"distances": _extract_distances
+				}
+
+	return extract_metrics[metric]
+
+
+def _extract_xyz(top, traj, atom_selection):
+
+	# Load the trajectory
+	traj = mdt.load(traj, top=top)
+	nframes = traj.n_frames
+
+	# Calculate XYZ RMSD between frames
+	rmsd_matrix = np.zeros((nframes, nframes))
+	for i in range(nframes):
+		rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj, reference=traj, frame=i, atom_indices=atom_selection, parallel=True)
+
+	return rmsd_matrix
+
+
+def _extract_distances(top, traj, atom_selection):
+
+	# Load the trajectory
+	traj = mdt.load(traj, top=top)
+
+	# Calculate pairwise distance RMSD between frames
+	pairwise_distances = mdt.compute_distances(traj=traj, atom_pairs=atom_selection)
+	rmsd_mat = Scatter._repr_distmat(pairwise_distances)
+
+	return rmsd_mat
 
 
 class Trajectory(Base):
@@ -253,7 +289,7 @@ class BaseCluster(Trajectory):
 		return self._traj_cluster_dir
 
 	@staticmethod
-	def _extract_leader(top, traj, trajnum, output_dir):
+	def _extract_leader(top, traj, extract_metric, atom_selection, trajnum, output_dir):
 		"""
 		Extract a representative conformer (leader) from a given single cluster trajectory.
 
@@ -266,23 +302,21 @@ class BaseCluster(Trajectory):
 			Path to the topology .pdb file.
 		traj : str
 			Path to the trajectory file (mdtraj supported extensions).
+		extract_metric : str
+			Metric for extracting representative member out of a cluster.
+		atom_selection : ndarray
+			Numpy array (N, ) containing indices of atoms.
 		trajnum : int
 			Number of the trajectory.
 		output_dir : str
 			Path to output directory to save trajectory clusters.
 		"""
 
-		# Load the trajectory
-		traj = mdt.load(traj, top=top)
-		nframes = traj.n_frames
-
-		# Calculate pairwise RMSD between frames
-		rmsd_matrix = np.zeros((nframes, nframes))
-		for i in range(nframes):
-			rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj, reference=traj, frame=i, parallel=True)
+		# Get RMSD matrix
+		rmsd_mat = _get_extract_metric(extract_metric)(top, traj, atom_selection)
 
 		# Calculate the sum along each and get leader index on the smallest number
-		rmsd_sum = np.sum(rmsd_matrix, axis=1)
+		rmsd_sum = np.sum(rmsd_mat, axis=1)
 		leader_index = np.where(rmsd_sum == rmsd_sum.min())[0][0]
 
 		# Save the leader as a PDB
