@@ -131,8 +131,7 @@ def _get_extract_metric(metric):
 	"""
 
 	extract_metrics = {"xyz": _extract_xyz,
-				"distances": _extract_distances
-				}
+				"distances": _extract_distances}
 
 	return extract_metrics[metric]
 
@@ -393,9 +392,8 @@ class BaseCluster(Trajectory):
 		Trajectory._mkdir(self._cluster_leader_dir)
 
 		# Extract a representative conformer from a given cluster trajectory.
-		# Skip HDBSCAN noise assignment (cluster -1)
-		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
-			BaseCluster._extract_leader(pdb=self._pdb,
+		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
+			BaseCluster._extract_leader(top=self._top,
 							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							extract_metric=extract_metric,
 							atom_selection=atom_selection,
