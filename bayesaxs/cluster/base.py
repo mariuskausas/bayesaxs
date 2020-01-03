@@ -130,7 +130,11 @@ def _extract_xyz(top, traj, atom_selection):
 	# Calculate XYZ RMSD between frames
 	rmsd_matrix = np.zeros((nframes, nframes))
 	for i in range(nframes):
-		rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj, reference=traj, frame=i, atom_indices=atom_selection, parallel=True)
+		rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj,
+										reference=traj,
+										frame=i,
+										atom_indices=atom_selection,
+										parallel=True)
 
 	return rmsd_matrix
 
@@ -324,7 +328,7 @@ class BaseCluster(Trajectory):
 
 		return
 
-	def save_cluster_leaders(self):
+	def save_cluster_leaders(self, extract_metric, atom_selection):
 		"""
 		Save cluster leader from each cluster trajectories.
 
@@ -340,6 +344,8 @@ class BaseCluster(Trajectory):
 		for cluster in range(self._cluster_labels.min() + 1, self._cluster_labels.max() + 1):
 			BaseCluster._extract_leader(top=self._pdb,
 							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
+							extract_metric=extract_metric,
+							atom_selection=atom_selection,
 							trajnum=cluster,
 							output_dir=self._cluster_leader_dir)
 
