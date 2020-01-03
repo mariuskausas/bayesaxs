@@ -9,32 +9,6 @@ from bayesaxs.base import Base
 from bayesaxs.basis.scatter import Scatter
 
 
-def _get_cluster_metric(metric):
-	"""
-	Get a clustering metric.
-
-	Following metrics are available:
-		1) xyz - cluster using xyz coordinates.
-		2) distances - cluster on pairwise inter-atom distances.
-		3) DRID - cluster using DRID distances.
-
-	For effective clustering using xyz coordinates,
-	a rotational and translational movements of a trajectory
-	should be removed prior.
-
-	Returns
-	-------
-	out : function
-		Clustering metric function.
-	"""
-
-	cluster_metrics = {"xyz": _cluster_xyz,
-				"distances": _cluster_distances,
-				"DRID": _cluster_drid}
-
-	return cluster_metrics[metric]
-
-
 def _cluster_xyz(traj, atom_selection):
 	"""
 	Prepare input of XYZ coordinates for clustering.
@@ -112,28 +86,30 @@ def _cluster_drid(traj, atom_selection):
 	return drid_distances
 
 
-def _get_extract_metric(metric):
+def _get_cluster_metric(metric):
 	"""
-	Get metric for extracting representative trajectory cluster leader.
+	Get a clustering metric.
 
-	Following metrics are used to calculate RMSD scores:
-		1) xyz - xyz coordinates.
+	Following metrics are available:
+		1) xyz - cluster using xyz coordinates.
 		2) distances - cluster on pairwise inter-atom distances.
+		3) DRID - cluster using DRID distances.
 
-	For effective extraction of a representative trajectory cluster leader,
-	while using xyz, a rotational and translational movements
-	of a trajectory should be removed prior.
+	For effective clustering using xyz coordinates,
+	a rotational and translational movements of a trajectory
+	should be removed prior.
 
 	Returns
 	-------
 	out : function
-		Extraction metric function.
+		Clustering metric function.
 	"""
 
-	extract_metrics = {"xyz": _extract_xyz,
-				"distances": _extract_distances}
+	cluster_metrics = {"xyz": _cluster_xyz,
+				"distances": _cluster_distances,
+				"DRID": _cluster_drid}
 
-	return extract_metrics[metric]
+	return cluster_metrics[metric]
 
 
 def _extract_xyz(top, traj, atom_selection):
@@ -201,6 +177,30 @@ def _extract_distances(top, traj, atom_selection):
 	rmsd_mat = Scatter._repr_distmat(pairwise_distances)
 
 	return rmsd_mat
+
+
+def _get_extract_metric(metric):
+	"""
+	Get metric for extracting representative trajectory cluster leader.
+
+	Following metrics are used to calculate RMSD scores:
+		1) xyz - xyz coordinates.
+		2) distances - cluster on pairwise inter-atom distances.
+
+	For effective extraction of a representative trajectory cluster leader,
+	while using xyz, a rotational and translational movements
+	of a trajectory should be removed prior.
+
+	Returns
+	-------
+	out : function
+		Extraction metric function.
+	"""
+
+	extract_metrics = {"xyz": _extract_xyz,
+				"distances": _extract_distances}
+
+	return extract_metrics[metric]
 
 
 class Trajectory(Base):

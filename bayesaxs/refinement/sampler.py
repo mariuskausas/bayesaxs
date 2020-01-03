@@ -2,9 +2,75 @@ from itertools import combinations
 
 import numpy as np
 import pymc3 as pm
+import theano as tt
 
 from bayesaxs.base import Base
 import bayesaxs.basis.chi as chi
+
+
+def _l1_regularization(chi2, alpha, weights):
+	""" L1 weight regularization.
+
+	Parameters
+	----------
+	chi2 : theano.tensor
+		Chi squared value as Theano tensor.
+	alpha : pymc3.distributions.distribution.Continuous
+		PyMC3 Uniform distribution for regularization parameter.
+	weights : pymc3.distributions.distribution.Continuous
+		PyMC3 Dirichlet weight distribution.
+
+	Returns
+	-------
+	out : theano.tensor
+		Regularized likelihood.
+	"""
+
+	return (chi2 / 2.0) + alpha * tt.tensor.sum(tt.tensor.abs_(weights))
+
+
+def _l2_regularization(chi2, alpha, weights):
+	""" L2 weight regularization.
+
+	Parameters
+	----------
+	chi2 : theano.tensor
+		Chi squared value as Theano tensor.
+	alpha : pymc3.distributions.distribution.Continuous
+		PyMC3 Uniform distribution for regularization parameter.
+	weights : pymc3.distributions.distribution.Continuous
+		PyMC3 Dirichlet weight distribution.
+
+	Returns
+	-------
+	out : theano.tensor
+		Regularized likelihood.
+	"""
+
+	return (chi2 / 2.0) + alpha * tt.tensor.sum(tt.tensor.power(weights, 2))
+
+
+def _get_regularization(reg_type):
+	"""
+	Get regularized likelihood.
+
+	"l1" and "l2" are L1 and L2 regularizations, respectively.
+
+	Parameters
+	----------
+	reg_type : str
+		Regularization type.
+
+	Returns
+	-------
+	out : function
+		Regularization function.
+	"""
+
+	regularizations = {"l1": _l1_regularization,
+					"l2": _l2_regularization}
+
+	return regularizations[reg_type]
 
 
 class Sampler(Base):
@@ -40,8 +106,12 @@ class Sampler(Base):
 		Numpy array (N, 1) of weighted theoretical intensities.
 	pm_chi2 : theano.tensor
 		Chi squared value as Theano tensor.
+	likelihood : theano.tensor
+		Initial likelihood form.
 	pm_likelihood : pymc3.distributions.distribution.Continuous
-		PyMC3 exponential log-likelihood.
+		PyMC3 Exponential log-likelihood.
+	pm_alpha : pymc3.distributions.distribution.Continuous
+		PyMC3 Uniform distribution for regularization parameter.
 	pm_trace : pymc3.backends.base.MultiTrace
 		PyMC3 Monte Carlo trace.
 	"""
@@ -60,7 +130,9 @@ class Sampler(Base):
 		self._pm_weights = None
 		self._pm_weighted_curve = None
 		self._pm_chi2 = None
+		self._likelihood = None
 		self._pm_likelihood = None
+		self._pm_alpha = None
 		self._pm_trace = None
 
 	def __repr__(self):
@@ -162,7 +234,32 @@ class Sampler(Base):
 			self._pm_chi2 = chi._chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
 
 			# Set likelihood in a form of exp(-chi2/2)
-			self._pm_likelihood = pm.Exponential("lam", lam=1, observed=(self._pm_chi2 / 2.0))
+			self._likelihood = (self._pm_chi2 / 2.0)
+
+	def _regularize_likelihood(self, reg_type):
+		"""
+		Regularize likelihood.
+
+		Parameters
+		----------
+		reg_type : str
+			Regularization type.
+		"""
+
+		# Update PyMC3 model
+		with self._model:
+			# Prior for regularization
+			self._pm_alpha = pm.Uniform("alpha", lower=0, upper=1000000, shape=1)
+
+			# Set regularized likelihood
+			self._likelihood = _get_regularization(reg_type)(self._pm_chi2, self._pm_alpha, self._pm_weights)
+
+	def _initialize_likelihood(self):
+		""" Initialize PyMC3 likelihood."""
+
+		# Update PyMC3 model
+		with self._model:
+			self._pm_likelihood = pm.Exponential("lam", lam=1, observed=self._likelihood)
 
 	def _sample(self, step="nuts", num_samples=50000, chains=1):
 		"""
@@ -222,7 +319,7 @@ class Sampler(Base):
 
 		return sample_summary
 
-	def inference_single_combination(self, curves, **kwargs):
+	def inference_single_combination(self, curves, reg_type=None, **kwargs):
 		"""
 		Infer weights for a single combination of scattering curves.
 
@@ -230,6 +327,8 @@ class Sampler(Base):
 		----------
 		curves : list
 			A list of bayesaxs.basis.scatter.Curve objects containing each representative fit.
+		reg_type : str
+			Option to turn on L1 or L2 regularization.
 
 		Returns
 		-------
@@ -237,14 +336,23 @@ class Sampler(Base):
 			Inference summary for a single combination as a dictionary.
 		"""
 
-		# Set up a BayesModel
+		# Set up a Sampler
 		single_state = Sampler()
 
 		# Load scattering curves
 		single_state.load_curves(curves)
 
-		# Initialization of BayesModel parameters and sampling
+		# Initialization of basic Sampler parameters
 		single_state._initialize_parameters()
+
+		# Likelihood regularization
+		if reg_type is not None:
+			single_state._regularize_likelihood(reg_type=reg_type)
+
+		# Initialization of likelihood
+		single_state._initialize_likelihood()
+
+		# Bayesian Monte Carlo inference
 		single_state._sample(**kwargs)
 
 		return single_state._sample_summary()
@@ -270,12 +378,10 @@ class Sampler(Base):
 		# Define unique combinations of scattering states
 		combs = combinations(self._curves, n_states)
 
-		# Perform sampling for each combination
+		# Perform Bayesian Monte Carlo inference for each combination
 		for comb in combs:
 			# Set combination title (e.g. 1:2:3)
 			comb_title = ":".join([curve.get_title() for curve in comb])
-
-			# Perform BayesModel sampling
 			basis_summary[comb_title] = Sampler.inference_single_combination(self, comb, **kwargs)
 
 		return basis_summary
@@ -296,7 +402,7 @@ class Sampler(Base):
 		# Number of basis sets
 		basis_sizes = [basis_size + 2 for basis_size in range(len(self._curves) - 1)]
 
-		# Perform sampling for each basis size
+		# Perform Bayesian Monte Carlo inference for each basis size
 		for basis_size in basis_sizes:
 			basis_summary[basis_size] = Sampler.inference_single_basis(self, n_states=basis_size, **kwargs)
 
