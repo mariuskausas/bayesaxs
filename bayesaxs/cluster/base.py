@@ -131,10 +131,10 @@ def _extract_xyz(top, traj, atom_selection):
 	rmsd_matrix = np.zeros((nframes, nframes))
 	for i in range(nframes):
 		rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj,
-										reference=traj,
-										frame=i,
-										atom_indices=atom_selection,
-										parallel=True)
+							reference=traj,
+							frame=i,
+							atom_indices=atom_selection,
+							parallel=True)
 
 	return rmsd_matrix
 
