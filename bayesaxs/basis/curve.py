@@ -138,3 +138,17 @@ class Curve(Base):
 		"""
 
 		return np.log10(self._fit)
+
+	def save_txt(self, output_name):
+		"""
+		Save Curve columns as a .fit file.
+
+		Parameters
+		----------
+		output_name : str
+			Output file name.
+		"""
+
+		np.savetxt(fname=output_name + ".fit", X=self._curve_data)
+
+		return

@@ -237,12 +237,12 @@ class Scatter(Base):
 		"""
 
 		# Load produced fit
-		fit = np.loadtxt("fit_" + leader_index + ".fit", skiprows=1)
+		fit = np.loadtxt(fname="fit_" + leader_index + ".fit", skiprows=1)
 
 		# Define index range for cutting fit files
 		fit_length = fit.shape[0]
 		exp_curve_length = exp_curve.get_curve_values().shape[0]
-		np.savetxt("fit_" + leader_index + ".fit", fit[fit_length - exp_curve_length:])
+		np.savetxt(fname="fit_" + leader_index + ".fit", X=fit[fit_length - exp_curve_length:])
 
 		return
 
