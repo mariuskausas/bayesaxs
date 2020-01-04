@@ -16,10 +16,10 @@ class Curve(Base):
 
 	Attributes
 	----------
-	path_to_file : str
-		Full or relative path to a scattering file.
 	curve_data : ndarray
 		Numpy array ((N, 3) or (N, 4)) describing scattering file.
+	path_to_file : str
+		Full or relative path to a scattering file.
 	q : ndarray
 		Numpy array (N, 1) of scattering angles.
 	iq : ndarray
@@ -30,19 +30,60 @@ class Curve(Base):
 		Numpy array (N, 1) of theoretical intensities.
 	"""
 
-	def __init__(self, path_to_file, title="Unnamed"):
+	def __init__(self, title="Unnamed"):
 		""" Create a new Curve object."""
 
 		Base.__init__(self, title=title)
-		self._path_to_file = path_to_file
-		self._curve_data = np.loadtxt(path_to_file)
+		self._curve_data = None
+		self._path_to_file = None
+		self._q = None
+		self._iq = None
+		self._sigma = None
+		self._fit = None
+
+	def __repr__(self):
+		return "Curve: {}".format(self._title)
+
+	def _initialize_curve_values(self):
+		""" Initialize curve scattering angles, intensities, errors and fit values. """
+
 		self._q = self._curve_data[:, :1]
 		self._iq = self._curve_data[:, 1:2]
 		self._sigma = self._curve_data[:, 2:3]
 		self._fit = self._curve_data[:, 3:4]
 
-	def __repr__(self):
-		return "Curve: {}".format(self._title)
+		return
+
+	def load_txt(self, path_to_file):
+		"""
+		Load a scattering file.
+
+		Parameters
+		----------
+		path_to_file : str
+			Full or relative path to a scattering file.
+		"""
+
+		self._curve_data = np.loadtxt(path_to_file)
+		self._path_to_file = path_to_file
+		Curve._initialize_curve_values(self)
+
+		return
+
+	def load_curve_data(self, curve_data):
+		"""
+		Load Numpy array into Curve object.
+
+		Parameters
+		----------
+		curve_data : ndarray
+			Numpy array ((N, 3) or (N, 4)) describing scattering file.
+		"""
+
+		self._curve_data = curve_data
+		Curve._initialize_curve_values(self)
+
+		return
 
 	def get_path_to_file(self):
 		"""
@@ -54,6 +95,20 @@ class Curve(Base):
 		"""
 
 		return self._path_to_file
+
+	def save_txt(self, output_name):
+		"""
+		Save Curve columns as a .fit file.
+
+		Parameters
+		----------
+		output_name : str
+			Output file name.
+		"""
+
+		np.savetxt(fname=output_name + ".fit", X=self._curve_data)
+
+		return
 
 	def get_curve_values(self):
 		"""
@@ -138,17 +193,3 @@ class Curve(Base):
 		"""
 
 		return np.log10(self._fit)
-
-	def save_txt(self, output_name):
-		"""
-		Save Curve columns as a .fit file.
-
-		Parameters
-		----------
-		output_name : str
-			Output file name.
-		"""
-
-		np.savetxt(fname=output_name + ".fit", X=self._curve_data)
-
-		return

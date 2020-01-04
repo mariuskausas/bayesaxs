@@ -6,6 +6,7 @@ import theano as tt
 
 from bayesaxs.base import Base
 import bayesaxs.basis.chi as chi
+from bayesaxs.basis.curve import Curve
 
 
 def _l1_regularization(chi2, alpha, weights):
@@ -209,6 +210,15 @@ class Sampler(Base):
 		"""
 		Calculate a weighted curve.
 
+		Parameters
+		----------
+		curves : list
+			A list of bayesaxs.basis.scatter.Curve objects containing each representative fit.
+		weights : theano.tensor or ndarray
+			A set of weights for producing a weighted curve.
+		shape : int
+			Number of bayesaxs.basis.scatter.Curve objects.
+
 		Returns
 		-------
 		out : ndarray
@@ -304,16 +314,19 @@ class Sampler(Base):
 		weights = self._pm_trace['w'].mean(axis=0)
 		sd = self._pm_trace['w'].std(axis=0)
 
-		# Calculate the optimized curve
+		# Calculate the optimized curve and chi2red
 		opt_curve = Sampler._weighted_curve(curves=self._curves, weights=weights, shape=self._shape)
-
-		# Calculate chi2red for an optimized curve
 		opt_chi2red = chi._chi2red_np(exp=self._exp_iq, theor=opt_curve, sigma=self._exp_sigma)
+
+		# Prepare a Curve object
+		opt_curve_array = np.hstack((self._exp_q, self._exp_iq, self._exp_sigma, opt_curve))
+		curve = Curve("opt_curve")
+		curve.load_curve_data(opt_curve_array)
 
 		# Update sample summary
 		sample_summary["wopt"] = weights
 		sample_summary["sd"] = sd
-		sample_summary["opt_curve"] = opt_curve
+		sample_summary["opt_curve"] = curve
 		sample_summary["opt_chi2red"] = opt_chi2red
 		sample_summary["trace"] = self._pm_trace
 

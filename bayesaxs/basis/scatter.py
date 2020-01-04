@@ -129,6 +129,29 @@ class Scatter(Base):
 
 		return re.findall("\d+", os.path.basename(s))[0]
 
+	@staticmethod
+	def _load_curve_objects(fits):
+		""" Initialize multiple Curve objects.
+
+		Parameters
+		----------
+		fits : list
+			A list of strings denoting path to a .fit file.
+
+		Returns
+		-------
+		curve_list : list
+			A list of bayesaxs.basis.scatter.Curve objects representing each fit.
+		"""
+
+		curve_list = []
+		for fit in fits:
+			curve = Curve(title=Scatter._get_str_int(fit))
+			curve.load_txt(fit)
+			curve_list.append(curve)
+
+		return curve_list
+
 	def load_fits(self, path_to_fits):
 		"""
 		Load .fit files generated using CRYSOL.
@@ -136,12 +159,15 @@ class Scatter(Base):
 		Parameters
 		----------
 		path_to_fits : str
-			Path to fit directory.
+			Path to a fit directory.
 		"""
 
+		# Define paths to fits
 		self._fit_dir = os.path.join(os.path.abspath(path_to_fits), '')
 		fits = glob.glob((self._fit_dir + "*"))
-		self._fit_list = [Curve(fit, title=Scatter._get_str_int(fit)) for fit in fits]
+
+		# Load each fit as a Curve object
+		self._fit_list = Scatter._load_curve_objects(fits)
 
 		return
 
@@ -237,7 +263,7 @@ class Scatter(Base):
 		"""
 
 		# Load produced fit
-		fit = np.loadtxt(fname="fit_" + leader_index + ".fit", skiprows=1)
+		fit = np.loadtxt(fname="fit_" + leader_index + ".fit", skiprows=1)  # Skip CRYSOL .fit header
 
 		# Define index range for cutting fit files
 		fit_length = fit.shape[0]
@@ -613,8 +639,11 @@ class Scatter(Base):
 			Path to fit directory.
 		"""
 
+		# Define paths to representative fits
 		self._repfit_dir = os.path.join(os.path.abspath(path_to_fits), '')
 		repfits = glob.glob((self._repfit_dir + "*"))
-		self._repfit_list = [Curve(repfit, title=Scatter._get_str_int(repfit)) for repfit in repfits]
+
+		# Load representative fits as Curve objects
+		self._repfit_list = Scatter._load_curve_objects(repfits)
 
 		return
