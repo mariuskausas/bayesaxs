@@ -146,7 +146,7 @@ class Scatter(Base):
 		return
 
 	@staticmethod
-	def _crysol_parameters(pdb, dat, p, lm=25, fb=17, sm=0.5, ns=256, un=1, dns=0.334, dro=0, err=True, cst=True):
+	def _crysol_parameters(pdb, dat, p, lm=25, fb=17, sm=1, ns=256, un=1, dns=0.334, dro=0, err=True, cst=True):
 		"""
 		Define a CRYSOL command call with relative parameters.
 
@@ -179,7 +179,7 @@ class Scatter(Base):
 
 		Returns
 		-------
-		crysol_call : list
+		crysol_command : list
 			A CRYSOL command line as a list.
 		"""
 
@@ -202,11 +202,11 @@ class Scatter(Base):
 			parameters["cst"] = ["-cst"]
 
 		# Construct CRYSOL call with associated parameters
-		crysol_call = ["crysol"]
+		crysol_command = ["crysol"]
 		for key in parameters.keys():
-			crysol_call += parameters.get(key, [])  # return empty list to avoid None addition
+			crysol_command += parameters.get(key, [])  # return empty list to avoid None addition
 
-		return crysol_call
+		return crysol_command
 
 	@staticmethod
 	def _system_command(command):
@@ -222,6 +222,51 @@ class Scatter(Base):
 		status = subprocess.call(command)
 
 		return status
+
+	@staticmethod
+	def _crysol_fit_format(exp_curve, leader_index):
+		"""
+		Format CRYSOL output .fit file.
+
+		Parameters
+		----------
+		exp_curve : bayesaxs.basis.scatter.Curve object.
+			Experimental scattering curve loaded as Curve object.
+		leader_index : str
+			Index number of the trajectory cluster index.
+		"""
+
+		# Load produced fit
+		fit = np.loadtxt("fit_" + leader_index + ".fit", skiprows=1)
+
+		# Define index range for cutting fit files
+		fit_length = fit.shape[0]
+		exp_curve_length = exp_curve.get_curve_values().shape[0]
+		np.savetxt("fit_" + leader_index + ".fit", fit[fit_length - exp_curve_length:])
+
+		return
+
+	def _crysol_clean_up(self):
+		"""
+		Perform clean-up after CRYSOL calculations.
+
+		The function moves .fit, .log and crysol_summary.txt files
+		into the appropriate folders.
+		"""
+
+		# Define all fits and logs
+		fits = glob.glob("fit_*.fit")
+		logs = glob.glob("fit_*.log")
+
+		# Move all fits and logs
+		for idx in range(len(fits)):
+			shutil.move(fits[idx], self._fit_dir)
+			shutil.move(logs[idx], self._crysol_log_dir)
+
+		# Move CRYSOL summary to a logs directory
+		shutil.move("crysol_summary.txt", self._crysol_log_dir)
+
+		return
 
 	def calc_scattering(self, exp_curve, **kwargs):
 		"""
@@ -259,32 +304,16 @@ class Scatter(Base):
 		self._crysol_log_dir = os.path.join(self._cwdir, self._title + "_crysol_logs", '')
 		Base._mkdir(self._crysol_log_dir)
 
-		# Define index range for cutting fit files
-		exp_curve_length = exp_curve.get_curve_values().shape[0]
-
-		# Calculate the fits and move them to directory
+		# Calculate the CRYSOL fits for each leader
+		exp_curve_file = exp_curve.get_path_to_file()
 		for leader in self._leader_set:
-			# Run CRYSOL command
-			exp_curve_file = exp_curve.get_path_to_file()
 			leader_index = Scatter._get_str_int(leader)
-			crysol_call = Scatter._crysol_parameters(pdb=leader, dat=exp_curve_file, p=leader_index, **kwargs)
-			Scatter._system_command(crysol_call)
+			crysol_command = Scatter._crysol_parameters(pdb=leader, dat=exp_curve_file, p=leader_index, **kwargs)
+			Scatter._system_command(crysol_command)
+			Scatter._crysol_fit_format(exp_curve=exp_curve, leader_index=leader_index)
 
-			# Load produced fit
-			fit = np.loadtxt("fit_" + leader_index + ".fit", skiprows=1)
-
-			# Cut fit to the right shape
-			fit_length = fit.shape[0]
-			np.savetxt("fit_" + leader_index + ".fit", fit[fit_length - exp_curve_length:], header="CRYSOL fit")
-
-			# Move CRYSOL fit to a fits directory
-			shutil.move("fit_" + leader_index + ".fit", self._fit_dir)
-
-			# Move CRYSOL log to a logs directory
-			shutil.move("fit_" + leader_index + ".log", self._crysol_log_dir)
-
-		# Move CRYSOL summary to a logs directory
-		shutil.move("crysol_summary.txt", self._crysol_log_dir)
+		# Clean-up
+		Scatter._crysol_clean_up(self)
 
 		# Initialize fits
 		Scatter.load_fits(self, self._fit_dir + "*.fit")
