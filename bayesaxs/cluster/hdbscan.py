@@ -19,6 +19,8 @@ class HDBSCAN(BaseCluster):
 	core_dist_n_jobs : int
 		Number of parallel jobs to run in core distance computations.
 		For core_dist_n_jobs below -1, (n_cpus + 1 + core_dist_n_jobs) are used.
+	kwargs : str
+		All other parameters for setting HDBSCAN object.
 
 	Attributes
 	----------
@@ -33,6 +35,18 @@ class HDBSCAN(BaseCluster):
 		self._clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
 										metric=metric,
 										core_dist_n_jobs=core_dist_n_jobs, **kwargs)
+
+	def get_clusterer(self):
+		"""
+		Get initialized HDBSCAN object.
+
+		Returns
+		-------
+		out : hdbscan.hdbscan_.HDBSCAN object
+			Clustering object initialized using HDBSCAN.
+		"""
+
+		return self._clusterer
 
 	def fit_predict(self, metric="xyz", **kwargs):
 		"""

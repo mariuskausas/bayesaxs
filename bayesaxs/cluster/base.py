@@ -4,9 +4,9 @@ from itertools import combinations
 
 import numpy as np
 import mdtraj as mdt
+from scipy.spatial.distance import pdist, squareform
 
 from bayesaxs.base import Base
-from bayesaxs.basis.scatter import Scatter
 
 
 def _cluster_xyz(traj, atom_selection):
@@ -112,28 +112,30 @@ def _get_cluster_metric(metric):
 	return cluster_metrics[metric]
 
 
-def _extract_xyz(top, traj, atom_selection):
+def _extract_xyz(path_to_top, path_to_traj, atom_selection):
 	"""
 	Calculate pairwise frame RMSD using XYZ coordinates.
 
 	Parameters
 	----------
-	top : str
+	path_to_top : str
 		Path to the topology .pdb file.
-	traj : str
+	path_to_traj : str
 		Path to the trajectory file (mdtraj supported extensions).
 	atom_selection : ndarray
 		Numpy array (N, ) containing indices of atoms.
 
 	Returns
 	-------
-	out : ndarray
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	rmsd_matrix : ndarray
 		Numpy matrix (N, N) with pairwise frame RMSD values,
 		where N equals the number of frames.
 	"""
 
 	# Load the trajectory
-	traj = mdt.load(traj, top=top)
+	traj = mdt.load(path_to_traj, top=path_to_top)
 	nframes = traj.n_frames
 
 	# Calculate XYZ RMSD between frames
@@ -145,38 +147,40 @@ def _extract_xyz(top, traj, atom_selection):
 							atom_indices=atom_selection,
 							parallel=True)
 
-	return rmsd_matrix
+	return traj, rmsd_matrix
 
 
-def _extract_distances(top, traj, atom_selection):
+def _extract_distances(path_to_top, path_to_traj, atom_selection):
 	"""
 	Calculate pairwise atom distance RMSD between frames.
 
 	Parameters
 	----------
-	top : str
+	path_to_top : str
 		Path to the topology .pdb file.
-	traj : str
+	path_to_traj : str
 		Path to the trajectory file (mdtraj supported extensions).
 	atom_selection : ndarray
 		Numpy array (N, ) containing indices of atoms.
 
 	Returns
 	-------
-	out : ndarray
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	rmsd_matrix : ndarray
 		Numpy array (N, N) with pairwise atom distance RMSD between frames,
 		where N equals the number of frames.
 	"""
 
 	# Load the trajectory
-	traj = mdt.load(traj, top=top)
+	traj = mdt.load(path_to_traj, top=path_to_top)
 
 	# Calculate pairwise atom distance RMSD between frames
 	atom_pairs = list(combinations(atom_selection, 2))
 	pairwise_distances = mdt.compute_distances(traj=traj, atom_pairs=atom_pairs)
-	rmsd_mat = Scatter._repr_distmat(pairwise_distances)
+	rmsd_mat = squareform(pdist(pairwise_distances, metric="euclidean"))
 
-	return rmsd_mat
+	return traj, rmsd_mat
 
 
 def _get_extract_metric(metric):
@@ -297,11 +301,32 @@ class BaseCluster(Trajectory):
 		""" Create a new BaseCluster object."""
 
 		Trajectory.__init__(self)
-		self._cwdir = Trajectory.get_cwdir()
+		self._cwdir = Trajectory.get_cwdir(self)
 		self._cluster_labels = None
 		self._traj_cluster_dir = None
 		self._cluster_leader_dir = None
 		self._leader_set = None
+
+	def load_cluster_labels(self, path_to_npy):
+		"""
+		Load cluster labels.
+
+		Parameters
+		----------
+		path_to_npy : str
+			Path to .npy file containing Numpy array (N, ) with cluster labels.
+		"""
+
+		self._cluster_labels = np.load(path_to_npy)
+
+		return
+
+	def save_cluster_labels(self):
+		""" Save cluster labels as Numpy array (N, ). N equals to number of frames."""
+
+		np.save(self._title + "_cluster_labels", self._cluster_labels)
+
+		return
 
 	def get_cluster_labels(self):
 		"""
@@ -345,7 +370,7 @@ class BaseCluster(Trajectory):
 		return self._traj_cluster_dir
 
 	@staticmethod
-	def _extract_leader(top, traj, extract_metric, atom_selection, trajnum, output_dir):
+	def _extract_leader(path_to_top, path_to_traj, extract_metric, atom_selection, trajnum, output_dir):
 		"""
 		Extract a representative leader from a given single cluster trajectory.
 
@@ -354,9 +379,9 @@ class BaseCluster(Trajectory):
 
 		Parameters
 		----------
-		top : str
+		path_to_top : str
 			Path to the topology .pdb file.
-		traj : str
+		path_to_traj : str
 			Path to the trajectory file (mdtraj supported extensions).
 		extract_metric : str
 			Metric for extracting representative member out of a cluster.
@@ -369,7 +394,7 @@ class BaseCluster(Trajectory):
 		"""
 
 		# Get RMSD matrix
-		rmsd_mat = _get_extract_metric(extract_metric)(top, traj, atom_selection)
+		traj, rmsd_mat = _get_extract_metric(extract_metric)(path_to_top, path_to_traj, atom_selection)
 
 		# Calculate the sum along each and get leader index on the smallest number
 		rmsd_sum = np.sum(rmsd_mat, axis=1)
@@ -393,8 +418,8 @@ class BaseCluster(Trajectory):
 
 		# Extract a representative conformer from a given cluster trajectory.
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
-			BaseCluster._extract_leader(top=self._top,
-							traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
+			BaseCluster._extract_leader(path_to_top=self._top,
+							path_to_traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 							extract_metric=extract_metric,
 							atom_selection=atom_selection,
 							trajnum=cluster,
