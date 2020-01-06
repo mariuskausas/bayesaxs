@@ -15,5 +15,5 @@ __all__ = ["basis", "cluster", "inference", "viz", "utils"]
 from bayesaxs.basis import Curve, Scatter
 from bayesaxs.cluster.hdbscan import HDBSCAN
 from bayesaxs.inference.sampler import Sampler
-from bayesaxs.viz.plotting import plot_heatmap, plot_multi_scatters, plot_single_scatter
+from bayesaxs.viz.plotting import plot_single_fit, plot_multiple_fits
 from bayesaxs.utils.utils import load_pickle, save_pickle

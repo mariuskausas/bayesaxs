@@ -256,7 +256,7 @@ class Scatter(Base):
 
 		Parameters
 		----------
-		exp_curve : bayesaxs.basis.scatter.Curve object.
+		exp_curve : bayesaxs.basis.scatter.Curve object
 			Experimental scattering curve loaded as Curve object.
 		leader_index : str
 			Index number of the trajectory cluster index.
@@ -300,7 +300,7 @@ class Scatter(Base):
 
 		Parameters
 		----------
-		exp_curve : bayesaxs.basis.scatter.Curve object.
+		exp_curve : bayesaxs.basis.scatter.Curve object
 			Experimental scattering curve loaded as Curve object.
 		lm : int
 			Maximum number of harmonics.
