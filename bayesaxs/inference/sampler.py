@@ -332,7 +332,7 @@ class Sampler(Base):
 
 		return sample_summary
 
-	def inference_single_combination(self, curves, reg_type=None, **kwargs):
+	def inference_single_combination(self, reg_type=None, **kwargs):
 		"""
 		Infer weights for a single combination of scattering curves.
 
@@ -353,7 +353,7 @@ class Sampler(Base):
 		single_state = Sampler()
 
 		# Load scattering curves
-		single_state.load_curves(curves)
+		single_state.load_curves(self._curves)
 
 		# Initialization of basic Sampler parameters
 		single_state._initialize_parameters()
@@ -370,7 +370,7 @@ class Sampler(Base):
 
 		return single_state._sample_summary()
 
-	def inference_single_basis(self, n_states, **kwargs):
+	def inference_single_basis(self, n_states,**kwargs):
 		"""
 		Infer weights for a single basis-set.
 
@@ -395,7 +395,9 @@ class Sampler(Base):
 		for comb in combs:
 			# Set combination title (e.g. 1:2:3)
 			comb_title = ":".join([curve.get_title() for curve in comb])
-			basis_summary[comb_title] = Sampler.inference_single_combination(self, comb, **kwargs)
+			sampler = Sampler()
+			sampler.load_curves(comb)
+			basis_summary[comb_title] = sampler.inference_single_combination(**kwargs)
 
 		return basis_summary
 

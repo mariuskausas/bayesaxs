@@ -117,3 +117,6 @@ ENV/
 sandbox.py
 
 *.ipynb
+
+*.pkl
+*.npy
