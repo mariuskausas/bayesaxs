@@ -44,7 +44,7 @@ def plot_single_fit(curve):
 	ax1.plot(q, exp, label="Exp", color="k", linewidth=2, zorder=1)
 	ax1.fill_between(q, exp-sigma, exp+sigma, color='black', alpha=0.2, label='Error', zorder=2)
 	ax1.plot(q, fit, label="Fit : {}".format(curve.get_title()), color="tab:red", linewidth=3, zorder=3)
-	ax1.semilogy(nonposy="mask")
+	ax1.semilogy(nonposy="clip")
 	ax1.set_xticklabels([])
 	ax1.tick_params(**tick_params)
 	ax1.set_ylabel("$I(q)$", fontsize=fs)
@@ -86,7 +86,7 @@ def plot_multiple_fits(curves):
 		q, exp, sigma, fit = _get_curve_data(curve)
 		ax.plot(q, fit, label="Fit : {}".format(curve.get_title()), linewidth=3, zorder=3)
 
-	ax.semilogy(nonposy="mask")
+	ax.semilogy(nonposy="clip")
 
 	ax.tick_params(**tick_params)
 
