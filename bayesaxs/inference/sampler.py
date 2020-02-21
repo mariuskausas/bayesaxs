@@ -9,8 +9,86 @@ import bayesaxs.basis.chi as chi
 from bayesaxs.basis.curve import Curve
 
 
+def _chi2_tt(exp, theor, sigma):
+	"""
+	Calculate chi squared (Theano method).
+
+	This implementation is specific for PyMC3 sampling.
+
+	This implementation does not catch division by zeros.
+
+	Parameters
+	----------
+	exp : ndarray
+		Numpy array (N, 1) of experimental intensities.
+	theor : ndarray
+		Numpy array (N, 1) of theoretical intensities.
+	sigma : ndarray
+		Numpy array (N, 1) of experimental errors.
+
+	Returns
+	-------
+	chi2 : theano.tensor
+		Chi squared value.
+	"""
+
+	chi2 = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
+
+	return chi2
+
+
+def _chi2red_tt(exp, theor, sigma):
+	"""
+	Calculate reduced chi squared (Theano method).
+
+	This implementation is specific for PyMC3 sampling.
+
+	This implementation does not catch division by zeros.
+
+	Parameters
+	----------
+	exp : ndarray
+		Numpy array (N, 1) of experimental intensities.
+	theor : ndarray
+		Numpy array (N, 1) of theoretical intensities.
+	sigma : ndarray
+		Numpy array (N, 1) of experimental errors.
+
+	Returns
+	-------
+	chi2red : theano.tensor
+		Reduced chi squared value.
+	"""
+
+	chi2red = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2)) / (exp.size - 1)
+
+	return chi2red
+
+
+def _get_chi(chi_type):
+	"""
+	Get type of chi-squared for likelihood.
+
+	Parameters
+	----------
+	chi_type : str
+		Type of chi-squared for likelihood.
+
+	Returns
+	-------
+	out : func
+		Function for calculating chi-squared (Theano method).
+	"""
+
+	chis = {"nonred": _chi2_tt,
+			"red": _chi2red_tt}
+
+	return chis[chi_type]
+
+
 def _l1_regularization(chi2, alpha, weights):
-	""" L1 weight regularization.
+	"""
+	L1 weight regularization.
 
 	Parameters
 	----------
@@ -31,7 +109,8 @@ def _l1_regularization(chi2, alpha, weights):
 
 
 def _l2_regularization(chi2, alpha, weights):
-	""" L2 weight regularization.
+	"""
+	L2 weight regularization.
 
 	Parameters
 	----------
@@ -101,6 +180,8 @@ class Sampler(Base):
 		Numpy array (N, 1) of experimental errors.
 	model : pymc3.model.InitContextMeta
 		PyMC3 context manager.
+	chi_type : str
+		Type of chi-squared for likelihood.
 	pm_weights : pymc3.distributions.distribution.Continuous
 		PyMC3 Dirichlet weight distribution.
 	pm_weighted_curve : ndarray
@@ -118,7 +199,7 @@ class Sampler(Base):
 	"""
 
 	def __init__(self, title="Unnamed"):
-		""" Create a new Sample object."""
+		""" Create a new Sampler object."""
 
 		Base.__init__(self, title=title)
 		self._title = title
@@ -232,7 +313,8 @@ class Sampler(Base):
 		Initialize Sampler parameters.
 
 		Setup PyMC3 context manager, define Dirichlet prior for weights,
-		define a weighted curve and set exponential log-likelihood."""
+		define a weighted curve and set exponential log-likelihood.
+		"""
 
 		# Initialize PyMC3 model
 		with self._model:
@@ -241,10 +323,10 @@ class Sampler(Base):
 
 			# Calculate a weighted curve
 			self._pm_weighted_curve = Sampler._weighted_curve(curves=self._curves, weights=self._pm_weights, shape=self._shape)
-			self._pm_chi2 = chi._chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
-
-			# Set likelihood in a form of exp(-chi2/2)
-			self._likelihood = (self._pm_chi2 / 2.0)
+			self._pm_chi2 = _chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
+			
+			# Set likelihood in a form of exp(-chi2)
+			self._likelihood = self._pm_chi2
 
 	def _regularize_likelihood(self, reg_type):
 		"""
