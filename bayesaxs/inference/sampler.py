@@ -9,37 +9,9 @@ import bayesaxs.basis.chi as chi
 from bayesaxs.basis.curve import Curve
 
 
-def _chi2_tt(exp, theor, sigma):
-	"""
-	Calculate chi squared (Theano method).
-
-	This implementation is specific for PyMC3 sampling.
-
-	This implementation does not catch division by zeros.
-
-	Parameters
-	----------
-	exp : ndarray
-		Numpy array (N, 1) of experimental intensities.
-	theor : ndarray
-		Numpy array (N, 1) of theoretical intensities.
-	sigma : ndarray
-		Numpy array (N, 1) of experimental errors.
-
-	Returns
-	-------
-	chi2 : theano.tensor
-		Chi squared value.
-	"""
-
-	chi2 = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
-
-	return chi2
-
-
 def _chi2red_tt(exp, theor, sigma):
 	"""
-	Calculate reduced chi squared (Theano method).
+	Calculate reduced chi squared (Theano method) (disused, but left for reference).
 
 	This implementation is specific for PyMC3 sampling.
 
@@ -65,27 +37,6 @@ def _chi2red_tt(exp, theor, sigma):
 	return chi2red
 
 
-def _get_chi(chi_type):
-	"""
-	Get type of chi-squared for likelihood.
-
-	Parameters
-	----------
-	chi_type : str
-		Type of chi-squared for likelihood.
-
-	Returns
-	-------
-	out : func
-		Function for calculating chi-squared (Theano method).
-	"""
-
-	chis = {"nonred": _chi2_tt,
-			"red": _chi2red_tt}
-
-	return chis[chi_type]
-
-
 def _l1_regularization(chi2, alpha, weights):
 	"""
 	L1 weight regularization.
@@ -105,7 +56,7 @@ def _l1_regularization(chi2, alpha, weights):
 		Regularized likelihood.
 	"""
 
-	return (chi2 / 2.0) + alpha * tt.tensor.sum(tt.tensor.abs_(weights))
+	return chi2 + alpha * tt.tensor.sum(tt.tensor.abs_(weights))
 
 
 def _l2_regularization(chi2, alpha, weights):
@@ -127,7 +78,7 @@ def _l2_regularization(chi2, alpha, weights):
 		Regularized likelihood.
 	"""
 
-	return (chi2 / 2.0) + alpha * tt.tensor.sum(tt.tensor.power(weights, 2))
+	return chi2 + alpha * tt.tensor.sum(tt.tensor.power(weights, 2))
 
 
 def _get_regularization(reg_type):
@@ -186,6 +137,8 @@ class Sampler(Base):
 		PyMC3 Dirichlet weight distribution.
 	pm_weighted_curve : ndarray
 		Numpy array (N, 1) of weighted theoretical intensities.
+	pm_scaling_constant : theano.tensor
+		Scaling constant as Theano tensor.
 	pm_chi2 : theano.tensor
 		Chi squared value as Theano tensor.
 	likelihood : theano.tensor
@@ -211,6 +164,7 @@ class Sampler(Base):
 		self._model = pm.Model()
 		self._pm_weights = None
 		self._pm_weighted_curve = None
+		self._pm_scaling_constant = None
 		self._pm_chi2 = None
 		self._likelihood = None
 		self._pm_likelihood = None
@@ -334,6 +288,34 @@ class Sampler(Base):
 
 		return scaling_constant
 
+	@staticmethod
+	def _chi2_tt(exp, theor, sigma):
+		"""
+		Calculate chi squared (Theano method).
+
+		This implementation is specific for PyMC3 sampling.
+
+		This implementation does not catch division by zeros.
+
+		Parameters
+		----------
+		exp : ndarray
+			Numpy array (N, 1) of experimental intensities.
+		theor : ndarray
+			Numpy array (N, 1) of theoretical intensities.
+		sigma : ndarray
+			Numpy array (N, 1) of experimental errors.
+
+		Returns
+		-------
+		chi2 : theano.tensor
+			Chi squared value.
+		"""
+
+		chi2 = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2))
+
+		return chi2
+
 	def _initialize_parameters(self):
 		"""
 		Initialize Sampler parameters.
@@ -349,10 +331,10 @@ class Sampler(Base):
 
 			# Calculate a weighted curve
 			self._pm_weighted_curve = Sampler._weighted_curve(curves=self._curves, weights=self._pm_weights, shape=self._shape)
-			scaling_constant = Sampler._get_scaling_constant(exp=self._exp_iq,
-															 theor=self._pm_weighted_curve,
-															 sigma=self._exp_sigma)
-			self._pm_chi2 = _chi2_tt(exp=self._exp_iq, theor=(self._pm_weighted_curve * scaling_constant), sigma=self._exp_sigma)
+			self._pm_scaling_constant = Sampler._get_scaling_constant(exp=self._exp_iq,
+											theor=self._pm_weighted_curve,
+											sigma=self._exp_sigma)
+			self._pm_chi2 = Sampler._chi2_tt(exp=self._exp_iq, theor=(self._pm_weighted_curve * self._pm_scaling_constant), sigma=self._exp_sigma)
 			
 			# Set likelihood in a form of exp(-chi2)
 			self._likelihood = self._pm_chi2
