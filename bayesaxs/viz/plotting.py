@@ -59,10 +59,6 @@ def plot_single_fit(curve):
 	ax2.tick_params(**tick_params)
 	ax2.set_xlabel("$q$", fontsize=fs)
 
-	plt.show()
-
-	return
-
 
 def plot_multiple_fits(curves):
 	"""
@@ -94,7 +90,3 @@ def plot_multiple_fits(curves):
 	ax.set_ylabel("$I(q)$", fontsize=fs)
 
 	ax.legend(loc="upper right", fontsize=14)
-
-	plt.show()
-
-	return

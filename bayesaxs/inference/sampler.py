@@ -308,6 +308,32 @@ class Sampler(Base):
 
 		return np.sum([(curves[i].get_fit() * weights[i]) for i in range(shape)], axis=0)
 
+	@staticmethod
+	def _get_scaling_constant(exp, theor, sigma):
+		"""
+		Calculate scaling constant.
+
+		Parameters
+		----------
+		exp : ndarray
+			Numpy array (N, 1) of experimental intensities.
+		theor : ndarray
+			Numpy array (N, 1) of theoretical intensities.
+		sigma : ndarray
+			Numpy array (N, 1) of experimental errors.
+
+		Returns
+		-------
+		scaling_constant : theano.tensor
+			Scaling constant.
+		"""
+
+		num = tt.tensor.sum((exp * theor) / tt.tensor.power(sigma, 2))
+		denom = tt.tensor.sum((tt.tensor.power(theor, 2)) / tt.tensor.power(sigma, 2))
+		scaling_constant = num / denom
+
+		return scaling_constant
+
 	def _initialize_parameters(self):
 		"""
 		Initialize Sampler parameters.
@@ -323,7 +349,10 @@ class Sampler(Base):
 
 			# Calculate a weighted curve
 			self._pm_weighted_curve = Sampler._weighted_curve(curves=self._curves, weights=self._pm_weights, shape=self._shape)
-			self._pm_chi2 = _chi2_tt(exp=self._exp_iq, theor=self._pm_weighted_curve, sigma=self._exp_sigma)
+			scaling_constant = Sampler._get_scaling_constant(exp=self._exp_iq,
+															 theor=self._pm_weighted_curve,
+															 sigma=self._exp_sigma)
+			self._pm_chi2 = _chi2_tt(exp=self._exp_iq, theor=(self._pm_weighted_curve * scaling_constant), sigma=self._exp_sigma)
 			
 			# Set likelihood in a form of exp(-chi2)
 			self._likelihood = self._pm_chi2
