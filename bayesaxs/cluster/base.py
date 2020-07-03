@@ -370,7 +370,7 @@ class BaseCluster(Trajectory):
 		return self._traj_cluster_dir
 
 	@staticmethod
-	def _extract_leader(path_to_top, path_to_traj, extract_metric, atom_selection, trajnum, output_dir):
+	def _extract_leader(path_to_top, path_to_traj, metric, atom_selection, trajnum, output_dir):
 		"""
 		Extract a representative leader from a given single cluster trajectory.
 
@@ -383,7 +383,7 @@ class BaseCluster(Trajectory):
 			Path to the topology .pdb file.
 		path_to_traj : str
 			Path to the trajectory file (mdtraj supported extensions).
-		extract_metric : str
+		metric : str
 			Metric for extracting representative member out of a cluster.
 		atom_selection : ndarray
 			Numpy array (N, ) containing indices of atoms.
@@ -394,7 +394,7 @@ class BaseCluster(Trajectory):
 		"""
 
 		# Get RMSD matrix
-		traj, rmsd_mat = _get_extract_metric(extract_metric)(path_to_top, path_to_traj, atom_selection)
+		traj, rmsd_mat = _get_extract_metric(metric)(path_to_top, path_to_traj, atom_selection)
 
 		# Calculate the sum along each and get leader index on the smallest number
 		rmsd_sum = np.sum(rmsd_mat, axis=1)
@@ -405,7 +405,7 @@ class BaseCluster(Trajectory):
 
 		return
 
-	def save_cluster_leaders(self, extract_metric, atom_selection):
+	def save_cluster_leaders(self, metric, atom_selection):
 		"""
 		Save cluster leader from each cluster trajectories.
 
@@ -420,7 +420,7 @@ class BaseCluster(Trajectory):
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
 			BaseCluster._extract_leader(path_to_top=self._top,
 							path_to_traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
-							extract_metric=extract_metric,
+							metric=metric,
 							atom_selection=atom_selection,
 							trajnum=cluster,
 							output_dir=self._cluster_leader_dir)
