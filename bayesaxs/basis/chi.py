@@ -79,9 +79,9 @@ def _pairwise_chi(curves):
 	number_of_curves = len(curves)
 	pairwise_mat = np.zeros((number_of_curves, number_of_curves))
 
-	# Perform a pairwise reduced chi squared calculation
+	# Perform a pairwise chi squared calculation
 	for i in range(number_of_curves):
 		for j in range(number_of_curves):
-			pairwise_mat[i:i + 1, j:j + 1] = _chi2red_np(curves[i].get_fit(), curves[j].get_fit(), curves[i].get_sigma())
+			pairwise_mat[i:i + 1, j:j + 1] = _chi2_np(curves[i].get_fit(), curves[j].get_fit(), curves[i].get_sigma())
 
 	return pairwise_mat
