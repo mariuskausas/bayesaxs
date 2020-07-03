@@ -353,7 +353,11 @@ class BaseCluster(Trajectory):
 
 		#  Extract clusters into .xtc trajectories
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
-			self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
+			# Avoid saving HDBSCAN noise
+			if cluster == - 1:
+				pass
+			else:
+				self._traj[self._cluster_labels == cluster].save_xtc(filename=self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc")
 
 		return
 
@@ -418,12 +422,16 @@ class BaseCluster(Trajectory):
 
 		# Extract a representative conformer from a given cluster trajectory.
 		for cluster in range(self._cluster_labels.min(), self._cluster_labels.max() + 1):
-			BaseCluster._extract_leader(path_to_top=self._top,
-							path_to_traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
-							metric=metric,
-							atom_selection=atom_selection,
-							trajnum=cluster,
-							output_dir=self._cluster_leader_dir)
+			# Avoid saving HDBSCAN noise
+			if cluster == - 1:
+				pass
+			else:
+				BaseCluster._extract_leader(path_to_top=self._top,
+								path_to_traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
+								metric=metric,
+								atom_selection=atom_selection,
+								trajnum=cluster,
+								output_dir=self._cluster_leader_dir)
 
 		# Initialize cluster leaders PDBs
 		self._leader_set = glob.glob((self._cluster_leader_dir + "*"))
