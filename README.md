@@ -12,10 +12,11 @@ References:
 
 - [Multidomain assembled states of Hck tyrosine kinase in solution](https://www.pnas.org/content/107/36/15757)
 - [Determining Atomistic SAXS Models of Tri-Ubiquitin Chains from Bayesian Analysis of Accelerated Molecular Dynamics Simulations](https://pubs.acs.org/doi/abs/10.1021/acs.jctc.7b00059)
+- [BEES: Bayesian Ensemble Estimation from SAS](https://www.cell.com/biophysj/fulltext/S0006-3495%2819%2930513-2)
 
 ### Copyright
 
-Copyright (c) 2019, Marius Kausas
+Copyright (c) 2020, Marius Kausas
 
 #### Acknowledgements
  
