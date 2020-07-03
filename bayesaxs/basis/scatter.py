@@ -39,6 +39,8 @@ class Scatter(Base):
 		where N is the number of fits.
 	linkage_matrix : ndarray
 		The hierarchical clustering encoded as a linkage matrix.
+	linkage_cutoff : float
+		Cutoff value for selecting number of cluster fits and dendogram visualisation.
 	linkage_dendogram : dict
 		A dictionary of data structures computed to render the dendrogram.
 	fit_cluster_indices : ndarray
@@ -67,6 +69,7 @@ class Scatter(Base):
 		self._crysol_log_dir = None
 		self._pairwise_chi_matrix = None
 		self._linkage_matrix = None
+		self._linkage_cutoff = None
 		self._linkage_dendogram = None
 		self._fit_cluster_indices = None
 		self._indices_of_clusterids = None
@@ -459,30 +462,34 @@ class Scatter(Base):
 
 		return sorted_matrix
 
-	def cluster_fits(self, cutoff_value):
+	def cluster_fits(self, method="average", metric="euclidean", cutoff_value=0.25):
 		"""
 		Perform hierarchical clustering on pairwise reduced chi squared matrix.
 
 		Parameters
 		----------
+		method : str
+			Available methods to calculate distances between newly formed clusters (scipy.cluster.hierarchy.linkage).
+		metric : str
+			Distance metric for calculating distances between newly formed clusters.
 		cutoff_value : float
-			Value between [0, 1] for cluster cutoff.
+			Cluster cutoff [0, 1] of the maximum distance between newly formed clusters.
 		"""
 
 		# Perform linkage clustering
-		self._linkage_matrix = sch.linkage(self._pairwise_chi_matrix, method='average', metric="euclidean")
+		self._linkage_matrix = sch.linkage(self._pairwise_chi_matrix, method=method, metric=metric)
 
 		# Define a cut off value in a range [0,1]
-		cutoff = cutoff_value * max(self._linkage_matrix[:, 2])
+		self._linkage_cutoff = cutoff_value * max(self._linkage_matrix[:, 2])
 
 		# Get cluster ids from clustering
 		self._fit_cluster_indices, self._indices_of_clusterids = Scatter._get_clusterids(linkage_matrix=self._linkage_matrix,
-																						cutoff=cutoff)
+																						cutoff=self._linkage_cutoff)
 
 		# Sort a cluster
 		self._sorted_pairwise_chi_matrix = Scatter._sort_pairwise_chi_matrix_(self, pairwise_chi_matrix=self._pairwise_chi_matrix,
 																			linkage_matrix=self._linkage_matrix,
-																			cutoff=cutoff)
+																			cutoff=self._linkage_cutoff)
 
 		return
 
@@ -497,6 +504,18 @@ class Scatter(Base):
 		"""
 
 		return self._linkage_matrix
+
+	def get_linkage_cutoff(self):
+		"""
+		Get clustering linkage cutoff.
+
+		Returns
+		-------
+		out : float
+			Cutoff value for selecting number of cluster fits and dendogram visualisation.
+		"""
+
+		return self._linkage_cutoff
 
 	def get_linkage_dendogram(self):
 		"""

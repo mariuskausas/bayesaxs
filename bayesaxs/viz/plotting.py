@@ -1,3 +1,4 @@
+import scipy.cluster.hierarchy as sch
 import matplotlib.pyplot as plt
 
 
@@ -90,3 +91,24 @@ def plot_multiple_fits(curves):
 	ax.set_ylabel("$I(q)$", fontsize=fs)
 
 	ax.legend(loc="upper right", fontsize=14)
+
+
+def plot_dendogram(scatter, orientation="left", **kwargs):
+	"""
+	Plot a dendogram.
+
+	Parameters
+	----------
+	scatter : bayesaxs.basis.scatter.Curve
+		A bayesaxs.basis.scatter.Curve object.
+	orientation : str
+		The direction to plot the dendrogram.
+	"""
+
+	fig = plt.figure(figsize=[8, 8])
+	ax = fig.add_subplot(111)
+
+	sch.dendrogram(scatter.get_linkage_matrix(),
+				color_threshold=scatter.get_linkage_cutoff(),
+				orientation=orientation,
+				**kwargs)
