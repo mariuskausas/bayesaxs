@@ -1,6 +1,8 @@
+import numpy as np
 import scipy.cluster.hierarchy as sch
 import matplotlib.pyplot as plt
-
+import matplotlib.cm as cm
+from matplotlib.lines import Line2D
 
 tick_params = dict(labelsize=22, length=10, width=1)
 
@@ -99,8 +101,8 @@ def plot_dendogram(scatter, orientation="left", **kwargs):
 
 	Parameters
 	----------
-	scatter : bayesaxs.basis.scatter.Curve
-		A bayesaxs.basis.scatter.Curve object.
+	scatter : bayesaxs.basis.scatter.Scatter
+		A bayesaxs.basis.scatter.Scatter object.
 	orientation : str
 		The direction to plot the dendrogram.
 	"""
@@ -112,3 +114,69 @@ def plot_dendogram(scatter, orientation="left", **kwargs):
 				color_threshold=scatter.get_linkage_cutoff(),
 				orientation=orientation,
 				**kwargs)
+
+
+def plot_clusters_vs_scatters(scatter, path_to_cluster_labels):
+	"""
+	Plot a time-series of cluster labels coloured
+	according to representative fits.
+
+	Parameters
+	----------
+	scatter : bayesaxs.basis.scatter.Scatter
+		A bayesaxs.basis.scatter.Scatter object.
+	path_to_cluster_labels : str
+		Path to the cluster label .npy file.
+	"""
+
+	# Associate each structural cluster with scattering fit cluster
+	curve_pairs = list(zip(scatter.get_fits(), scatter.get_fit_cluster_indices()))
+	curve_pairs_dict = {}
+	for idx, curve in enumerate(curve_pairs):
+		curve_pairs_dict[int(curve_pairs[idx][0].get_title())] = int(curve_pairs[idx][1])
+
+	# Load cluster labels
+	cluster_labels = np.load(path_to_cluster_labels)
+
+	# colors for clusters
+	n_curves = scatter.get_fit_cluster_indices().max()
+	cmap = plt.get_cmap('tab20')
+	colors = [cmap(i) for i in np.linspace(0, 1, n_curves)]
+
+	# define a sequence of colors
+	sequence_of_colors = []
+	for cluster_label in cluster_labels:
+		if cluster_label in curve_pairs_dict.keys():
+			sequence_of_colors.append(colors[curve_pairs_dict[cluster_label] - 1])
+		else:
+			sequence_of_colors.append("k")
+
+	# For each cluster assign a representative fit label
+	sequence_of_repfit_labels = []
+	for cluster_label in cluster_labels:
+		if cluster_label in curve_pairs_dict.keys():
+			t = scatter.get_representative_fits()[curve_pairs_dict[cluster_label] - 1]
+			sequence_of_repfit_labels.append(t.get_title())
+		else:
+			sequence_of_repfit_labels.append('-1')
+
+	# Define a set of colors for each representative fit label
+	colors_and_repfit_labels = list(zip(sequence_of_colors, sequence_of_repfit_labels))
+	colors_and_repfit_labels_dict = {}
+	for idx in range(len(colors_and_repfit_labels)):
+		colors_and_repfit_labels_dict[colors_and_repfit_labels[idx][0]] = colors_and_repfit_labels[idx][1]
+
+	# custom labels for plotting
+	custom_lines = [Line2D([0], [0], color=color, lw=4) for color in colors]
+	custom_labels = [colors_and_repfit_labels_dict[color] for color in colors]
+
+	# Plot
+	fs = tick_params["labelsize"]
+	fig = plt.figure(figsize=[8, 5])
+	ax = fig.add_subplot(111)
+
+	ax.scatter(range(cluster_labels.shape[0]), cluster_labels, s=50, c=sequence_of_colors)
+	ax.set_xlabel("Frame", fontsize=fs)
+	ax.set_ylabel("Cluster", fontsize=fs)
+	ax.legend(custom_lines, custom_labels, loc='right', bbox_to_anchor=(1.1, 0.5), fontsize=fs - 10)
+	ax.tick_params(labelsize=fs)
