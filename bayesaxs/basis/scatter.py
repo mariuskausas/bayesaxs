@@ -648,7 +648,7 @@ class Scatter(Base):
 
 		return self._repfit_list
 
-	def load_repfits(self, path_to_fits):
+	def load_representative_fits(self, path_to_fits):
 		"""
 		Load representative fits.
 
