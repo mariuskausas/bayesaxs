@@ -9,101 +9,6 @@ import bayesaxs.basis.chi as chi
 from bayesaxs.basis.curve import Curve
 
 
-def _chi2red_tt(exp, theor, sigma):
-	"""
-	Calculate reduced chi squared (Theano method) (disused, but left for reference).
-
-	This implementation is specific for PyMC3 sampling.
-
-	This implementation does not catch division by zeros.
-
-	Parameters
-	----------
-	exp : ndarray
-		Numpy array (N, 1) of experimental intensities.
-	theor : ndarray
-		Numpy array (N, 1) of theoretical intensities.
-	sigma : ndarray
-		Numpy array (N, 1) of experimental errors.
-
-	Returns
-	-------
-	chi2red : theano.tensor
-		Reduced chi squared value.
-	"""
-
-	chi2red = tt.tensor.sum(tt.tensor.power((exp - theor) / sigma, 2)) / (exp.size - 1)
-
-	return chi2red
-
-
-def _l1_regularization(chi2, alpha, weights):
-	"""
-	L1 weight regularization.
-
-	Parameters
-	----------
-	chi2 : theano.tensor
-		Chi squared value as Theano tensor.
-	alpha : pymc3.distributions.distribution.Continuous
-		PyMC3 Uniform distribution for regularization parameter.
-	weights : pymc3.distributions.distribution.Continuous
-		PyMC3 Dirichlet weight distribution.
-
-	Returns
-	-------
-	out : theano.tensor
-		Regularized likelihood.
-	"""
-
-	return chi2 + alpha * tt.tensor.sum(tt.tensor.abs_(weights))
-
-
-def _l2_regularization(chi2, alpha, weights):
-	"""
-	L2 weight regularization.
-
-	Parameters
-	----------
-	chi2 : theano.tensor
-		Chi squared value as Theano tensor.
-	alpha : pymc3.distributions.distribution.Continuous
-		PyMC3 Uniform distribution for regularization parameter.
-	weights : pymc3.distributions.distribution.Continuous
-		PyMC3 Dirichlet weight distribution.
-
-	Returns
-	-------
-	out : theano.tensor
-		Regularized likelihood.
-	"""
-
-	return chi2 + alpha * tt.tensor.sum(tt.tensor.power(weights, 2))
-
-
-def _get_regularization(reg_type):
-	"""
-	Get regularized likelihood.
-
-	"l1" and "l2" are L1 and L2 regularizations, respectively.
-
-	Parameters
-	----------
-	reg_type : str
-		Regularization type.
-
-	Returns
-	-------
-	out : function
-		Regularization function.
-	"""
-
-	regularizations = {"l1": _l1_regularization,
-					"l2": _l2_regularization}
-
-	return regularizations[reg_type]
-
-
 class Sampler(Base):
 	"""
 	Sampler object for performing weight Bayesian Monte Carlo.
@@ -145,8 +50,6 @@ class Sampler(Base):
 		Initial likelihood form.
 	pm_likelihood : pymc3.distributions.distribution.Continuous
 		PyMC3 Exponential log-likelihood.
-	pm_alpha : pymc3.distributions.distribution.Continuous
-		PyMC3 Uniform distribution for regularization parameter.
 	pm_trace : pymc3.backends.base.MultiTrace
 		PyMC3 Monte Carlo trace.
 	"""
@@ -168,8 +71,8 @@ class Sampler(Base):
 		self._pm_chi2 = None
 		self._likelihood = None
 		self._pm_likelihood = None
-		self._pm_alpha = None
 		self._pm_trace = None
+		# self._pm_alpha = None
 
 	def __repr__(self):
 		return "Sampler: {}".format(self._title)
@@ -335,27 +238,27 @@ class Sampler(Base):
 											theor=self._pm_weighted_curve,
 											sigma=self._exp_sigma)
 			self._pm_chi2 = Sampler._chi2_tt(exp=self._exp_iq, theor=(self._pm_weighted_curve * self._pm_scaling_constant), sigma=self._exp_sigma)
-			
-			# Set likelihood in a form of exp(-chi2)
-			self._likelihood = self._pm_chi2
 
-	def _regularize_likelihood(self, reg_type):
-		"""
-		Regularize likelihood.
+			# Set likelihood in a form of exp(-chi2 / 2)
+			self._likelihood = self._pm_chi2 / 2
 
-		Parameters
-		----------
-		reg_type : str
-			Regularization type.
-		"""
-
-		# Update PyMC3 model
-		with self._model:
-			# Prior for regularization
-			self._pm_alpha = pm.Uniform("alpha", lower=0, upper=1000000, shape=1)
-
-			# Set regularized likelihood
-			self._likelihood = _get_regularization(reg_type)(self._pm_chi2, self._pm_alpha, self._pm_weights)
+	# def _regularize_likelihood(self, reg_type):
+	# 	"""
+	# 	Regularize likelihood.
+	#
+	# 	Parameters
+	# 	----------
+	# 	reg_type : str
+	# 		Regularization type.
+	# 	"""
+	#
+	# 	# Update PyMC3 model
+	# 	with self._model:
+	# 		# Prior for regularization
+	# 		self._pm_alpha = pm.Uniform("alpha", lower=0, upper=1000000, shape=1)
+	#
+	# 		# Set regularized likelihood
+	# 		self._likelihood = _get_regularization(reg_type)(self._pm_chi2, self._pm_alpha, self._pm_weights)
 
 	def _initialize_likelihood(self):
 		""" Initialize PyMC3 likelihood."""
@@ -364,7 +267,7 @@ class Sampler(Base):
 		with self._model:
 			self._pm_likelihood = pm.Exponential("lam", lam=1, observed=self._likelihood)
 
-	def _sample(self, step="nuts", num_samples=50000, chains=1):
+	def _sample(self, step="nuts", num_samples=5000, chains=1, burn=500, **kwargs):
 		"""
 		Perform Bayesian Monte Carlo weight inference.
 
@@ -376,6 +279,8 @@ class Sampler(Base):
 			The number of samples to draw.
 		chains : int
 			The number of chains to sample.
+		burn : int
+			The length of burn-in period.
 		"""
 
 		# Finalize PyMC3 model
@@ -383,12 +288,12 @@ class Sampler(Base):
 			# Set the Monte Carlo sampler
 			if isinstance(step, str):
 				step = {
-					'nuts': pm.step_methods.NUTS(),
-					'metropolis': pm.step_methods.Metropolis()
+					'nuts': pm.step_methods.NUTS(**kwargs),
+					'metropolis': pm.step_methods.Metropolis(**kwargs)
 				}[step.lower()]
 
 			# Perform Monte Carlo sampling
-			self._pm_trace = pm.sample(draws=num_samples, step=step, chains=chains)
+			self._pm_trace = pm.sample(draws=num_samples, step=step, chains=chains, tune=burn)
 
 	def _sample_summary(self):
 		"""
@@ -425,7 +330,7 @@ class Sampler(Base):
 
 		return sample_summary
 
-	def inference_single_combination(self, reg_type=None, **kwargs):
+	def inference_single_combination(self, **kwargs):
 		"""
 		Infer weights for a single combination of scattering curves.
 
@@ -433,8 +338,6 @@ class Sampler(Base):
 		----------
 		curves : list
 			A list of bayesaxs.basis.scatter.Curve objects containing each representative fit.
-		reg_type : str
-			Option to turn on L1 or L2 regularization.
 
 		Returns
 		-------
@@ -452,8 +355,8 @@ class Sampler(Base):
 		single_state._initialize_parameters()
 
 		# Likelihood regularization
-		if reg_type is not None:
-			single_state._regularize_likelihood(reg_type=reg_type)
+		# if reg_type is not None:
+		# 	single_state._regularize_likelihood(reg_type=reg_type)
 
 		# Initialization of likelihood
 		single_state._initialize_likelihood()
@@ -463,7 +366,7 @@ class Sampler(Base):
 
 		return single_state._sample_summary()
 
-	def inference_single_basis(self, n_states,**kwargs):
+	def inference_single_basis(self, n_states, **kwargs):
 		"""
 		Infer weights for a single basis-set.
 
@@ -515,3 +418,70 @@ class Sampler(Base):
 			basis_summary[basis_size] = Sampler.inference_single_basis(self, n_states=basis_size, **kwargs)
 
 		return basis_summary
+
+
+# def _l1_regularization(chi2, alpha, weights):
+# 	"""
+# 	L1 weight regularization.
+#
+# 	Parameters
+# 	----------
+# 	chi2 : theano.tensor
+# 		Chi squared value as Theano tensor.
+# 	alpha : pymc3.distributions.distribution.Continuous
+# 		PyMC3 Uniform distribution for regularization parameter.
+# 	weights : pymc3.distributions.distribution.Continuous
+# 		PyMC3 Dirichlet weight distribution.
+#
+# 	Returns
+# 	-------
+# 	out : theano.tensor
+# 		Regularized likelihood.
+# 	"""
+#
+# 	return chi2 + alpha * tt.tensor.sum(tt.tensor.abs_(weights))
+#
+#
+# def _l2_regularization(chi2, alpha, weights):
+# 	"""
+# 	L2 weight regularization.
+#
+# 	Parameters
+# 	----------
+# 	chi2 : theano.tensor
+# 		Chi squared value as Theano tensor.
+# 	alpha : pymc3.distributions.distribution.Continuous
+# 		PyMC3 Uniform distribution for regularization parameter.
+# 	weights : pymc3.distributions.distribution.Continuous
+# 		PyMC3 Dirichlet weight distribution.
+#
+# 	Returns
+# 	-------
+# 	out : theano.tensor
+# 		Regularized likelihood.
+# 	"""
+#
+# 	return chi2 + alpha * tt.tensor.sum(tt.tensor.power(weights, 2))
+#
+#
+# def _get_regularization(reg_type):
+# 	"""
+# 	Get regularized likelihood.
+#
+# 	"l1" and "l2" are L1 and L2 regularizations, respectively.
+#
+# 	Parameters
+# 	----------
+# 	reg_type : str
+# 		Regularization type.
+#
+# 	Returns
+# 	-------
+# 	out : function
+# 		Regularization function.
+# 	"""
+#
+# 	regularizations = {"l1": _l1_regularization,
+# 					"l2": _l2_regularization}
+#
+# 	return regularizations[reg_type]
