@@ -180,3 +180,31 @@ def plot_clusters_vs_scatters(scatter, path_to_cluster_labels):
 	ax.set_ylabel("Cluster", fontsize=fs)
 	ax.legend(custom_lines, custom_labels, loc='right', bbox_to_anchor=(1.1, 0.5), fontsize=fs - 10)
 	ax.tick_params(labelsize=fs)
+
+
+def plot_weights(combination):
+	"""
+	Plot weights for combination of fits.
+
+	Parameters
+	----------
+	combination : dict
+		Inference summary for a single combination as a dictionary.
+	"""
+
+	# Parse results
+	comb = list(combination.keys())[0]
+	clusters = comb.split(":")
+	w = combination[comb]["wopt"]
+	sd = combination[comb]["sd"]
+
+	# Plot weights
+	fs = tick_params["labelsize"]
+	fig = plt.figure(figsize=[8, 2])
+	ax = fig.add_subplot(111)
+
+	ax.bar(clusters, w, yerr=sd, color="tab:grey", edgecolor="black")
+	ax.set_ylim(0, 1)
+	ax.set_xlabel("Cluster number", fontsize=fs)
+	ax.set_ylabel("Weight", fontsize=fs)
+	ax.tick_params(labelsize=fs - 6)
