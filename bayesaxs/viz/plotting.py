@@ -138,12 +138,12 @@ def plot_clusters_vs_scatters(scatter, path_to_cluster_labels):
 	# Load cluster labels
 	cluster_labels = np.load(path_to_cluster_labels)
 
-	# colors for clusters
+	# Dolors for clusters
 	n_curves = scatter.get_fit_cluster_indices().max()
 	cmap = plt.get_cmap('tab20')
 	colors = [cmap(i) for i in np.linspace(0, 1, n_curves)]
 
-	# define a sequence of colors
+	# Define a sequence of colors
 	sequence_of_colors = []
 	for cluster_label in cluster_labels:
 		if cluster_label in curve_pairs_dict.keys():
@@ -166,7 +166,7 @@ def plot_clusters_vs_scatters(scatter, path_to_cluster_labels):
 	for idx in range(len(colors_and_repfit_labels)):
 		colors_and_repfit_labels_dict[colors_and_repfit_labels[idx][0]] = colors_and_repfit_labels[idx][1]
 
-	# custom labels for plotting
+	# Custom labels for plotting
 	custom_lines = [Line2D([0], [0], color=color, lw=4) for color in colors]
 	custom_labels = [colors_and_repfit_labels_dict[color] for color in colors]
 
