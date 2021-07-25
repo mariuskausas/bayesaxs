@@ -453,7 +453,10 @@ class Scatter(Base):
 		"""
 
 		# Calculate a dendogram based on a linkage matrix
-		self._linkage_dendogram = sch.dendrogram(linkage_matrix, orientation='left', color_threshold=cutoff)
+		self._linkage_dendogram = sch.dendrogram(linkage_matrix,
+												 orientation='left',
+												 color_threshold=cutoff,
+												 no_plot=True)
 		index = self._linkage_dendogram['leaves']
 
 		# Sort by leaves
