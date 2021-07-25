@@ -19,8 +19,8 @@ class HDBSCAN(BaseCluster):
 	core_dist_n_jobs : int
 		Number of parallel jobs to run in core distance computations.
 		For core_dist_n_jobs below -1, (n_cpus + 1 + core_dist_n_jobs) are used.
-	kwargs : str
-		All other parameters for setting HDBSCAN object.
+	kwargs :
+		Rest of other parameters for setting dbscan.hdbscan_.HDBSCAN object.
 
 	Attributes
 	----------
@@ -29,12 +29,13 @@ class HDBSCAN(BaseCluster):
 	"""
 
 	def __init__(self, min_cluster_size=5, metric="euclidean", core_dist_n_jobs=-1, **kwargs):
-		""" Create a new HDBSCAN object."""
+		""" Instantiate a new HDBSCAN object."""
 
 		BaseCluster.__init__(self)
 		self._clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size,
 										metric=metric,
-										core_dist_n_jobs=core_dist_n_jobs, **kwargs)
+										core_dist_n_jobs=core_dist_n_jobs,
+										**kwargs)
 
 	def get_clusterer(self):
 		"""
@@ -43,7 +44,7 @@ class HDBSCAN(BaseCluster):
 		Returns
 		-------
 		out : hdbscan.hdbscan_.HDBSCAN object
-			Clustering object initialized using HDBSCAN.
+			HDBSCAN clustering object.
 		"""
 
 		return self._clusterer
@@ -59,8 +60,8 @@ class HDBSCAN(BaseCluster):
 
 		The distances and DRID are calculated using mdtraj.
 
-		For effective clustering using xyz coordinates,
-		a rotational and translational movements of a trajectory
+		For effective clustering using XYZ coordinates,
+		rotational and translational movements of a trajectory
 		should be removed prior.
 
 		Parameters
@@ -75,6 +76,7 @@ class HDBSCAN(BaseCluster):
 
 		# Transform trajectory based on a clustering metric
 		cluster_input = _get_cluster_metric(metric)(traj=self._traj, **kwargs)
+		# Predict cluster labels
 		self._cluster_labels = self._clusterer.fit_predict(cluster_input)
 
 		return

@@ -8,9 +8,13 @@ from bayesaxs.cluster.base import _compute_pairwise_rmsd
 class Agglomerative(BaseCluster):
     """
     Agglomerative clustering object.
+
+    The Agglomerative object allows to perform a clustering on a given trajectory.
     """
 
     def __init__(self):
+        """ Instantiate a new Agglomerative object."""
+
         BaseCluster.__init__(self)
         self._rmsd_distances = None
         self._linkage_matrix = None
@@ -68,13 +72,18 @@ class Agglomerative(BaseCluster):
             Cutoff value for selecting a number of clusters.
         """
 
+        # Compute pairwise RMSD values between conformations
         self._rmsd_distances = _compute_pairwise_rmsd(traj=self.get_traj(),
                                                       atom_selection=atom_selection)
+        # Convert square-form distance matrix into a vector one
         reduced_distances = squareform(self._rmsd_distances, checks=False)
+        # Perform hierarchical clustering
         self._linkage_matrix = sch.linkage(reduced_distances,
                                            method=method,
                                            metric=metric)
+        # Compute cutoff value for hierarchical clustering
         self._linkage_cutoff = cutoff_value * max(self._linkage_matrix[:, 2])
+        # Form flat clusters from the hierarchical clustering
         self._cluster_labels = sch.fcluster(self._linkage_matrix,
                                             t=self._linkage_cutoff,
                                             criterion='distance')
