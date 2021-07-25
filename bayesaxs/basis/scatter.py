@@ -465,7 +465,7 @@ class Scatter(Base):
 
 		return sorted_matrix
 
-	def cluster_fits(self, method="average", metric="euclidean", cutoff_value=0.25):
+	def cluster_fits(self, method="ward", metric="euclidean", cutoff_value=0.25):
 		"""
 		Perform hierarchical clustering on pairwise reduced chi squared matrix.
 

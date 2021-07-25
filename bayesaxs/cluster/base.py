@@ -112,6 +112,43 @@ def _get_cluster_metric(metric):
 	return cluster_metrics[metric]
 
 
+def _compute_pairwise_rmsd(traj, atom_selection):
+	"""
+	Calculate pairwise frame RMSD using XYZ coordinates.
+
+	Parameters
+	----------
+	path_to_top : str
+		Path to the topology .pdb file.
+	path_to_traj : str
+		Path to the trajectory file (mdtraj supported extensions).
+	atom_selection : ndarray
+		Numpy array (N, ) containing indices of atoms.
+
+	Returns
+	-------
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
+	rmsd_matrix : ndarray
+		Numpy matrix (N, N) with pairwise frame RMSD values,
+		where N equals the number of frames.
+	"""
+
+	# Get the number of frames
+	nframes = traj.n_frames
+
+	# Calculate XYZ RMSD between frames
+	rmsd_matrix = np.zeros((nframes, nframes))
+	for i in range(nframes):
+		rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj,
+							reference=traj,
+							frame=i,
+							atom_indices=atom_selection,
+							parallel=True)
+
+	return rmsd_matrix
+
+
 def _extract_xyz(path_to_top, path_to_traj, atom_selection):
 	"""
 	Calculate pairwise frame RMSD using XYZ coordinates.
@@ -137,15 +174,8 @@ def _extract_xyz(path_to_top, path_to_traj, atom_selection):
 	# Load the trajectory
 	traj = mdt.load(path_to_traj, top=path_to_top)
 	nframes = traj.n_frames
-
 	# Calculate XYZ RMSD between frames
-	rmsd_matrix = np.zeros((nframes, nframes))
-	for i in range(nframes):
-		rmsd_matrix[i:i + 1, :] = mdt.rmsd(target=traj,
-							reference=traj,
-							frame=i,
-							atom_indices=atom_selection,
-							parallel=True)
+	rmsd_matrix = _compute_pairwise_rmsd(traj=traj, atom_selection=atom_selection)
 
 	return traj, rmsd_matrix
 
@@ -374,7 +404,7 @@ class BaseCluster(Trajectory):
 		return self._traj_cluster_dir
 
 	@staticmethod
-	def _extract_leader(path_to_top, path_to_traj, metric, atom_selection, trajnum, output_dir):
+	def _extract_leader_index(path_to_top, path_to_traj, metric, atom_selection, trajnum, output_dir):
 		"""
 		Extract a representative leader from a given single cluster trajectory.
 
@@ -426,7 +456,7 @@ class BaseCluster(Trajectory):
 			if cluster == - 1:
 				pass
 			else:
-				BaseCluster._extract_leader(path_to_top=self._top,
+				BaseCluster._extract_leader_index(path_to_top=self._top,
 								path_to_traj=(self._traj_cluster_dir + "cluster_" + str(cluster) + ".xtc"),
 								metric=metric,
 								atom_selection=atom_selection,
