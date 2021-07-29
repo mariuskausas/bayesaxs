@@ -118,10 +118,8 @@ def _compute_pairwise_rmsd(traj, atom_selection):
 
 	Parameters
 	----------
-	path_to_top : str
-		Path to the topology .pdb file.
-	path_to_traj : str
-		Path to the trajectory file (mdtraj supported extensions).
+	traj : mdtraj.core.trajectory.Trajectory object
+		Loaded mdtraj trajectory.
 	atom_selection : ndarray
 		Numpy array (N, ) containing indices of atoms.
 
@@ -174,6 +172,7 @@ def _extract_xyz(path_to_top, path_to_traj, atom_selection):
 	# Load the trajectory
 	traj = mdt.load(path_to_traj, top=path_to_top)
 	nframes = traj.n_frames
+
 	# Calculate XYZ RMSD between frames
 	rmsd_matrix = _compute_pairwise_rmsd(traj=traj, atom_selection=atom_selection)
 
