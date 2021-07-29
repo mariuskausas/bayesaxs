@@ -1,9 +1,11 @@
-import scipy.cluster.hierarchy as sch
-from scipy.spatial.distance import squareform
 from sklearn.cluster import AgglomerativeClustering
 
 from bayesaxs.cluster.base import BaseCluster
 from bayesaxs.cluster.base import _get_cluster_metric
+
+# Deprecated
+import scipy.cluster.hierarchy as sch
+from scipy.spatial.distance import squareform
 from bayesaxs.cluster.base import _compute_pairwise_rmsd
 
 
@@ -142,9 +144,8 @@ class Agglomerative(BaseCluster):
         ----------
         metric : str
             Available options ("xyz", "distances", "DRID").
-            The "xyz" option is set by default.
         atom_selection : ndarray
-            Numpy array (N, ) containing indices of atoms.
+            Numpy array (N, ) containing indices of atoms, which will be used for clustering.
         """
 
         # Transform trajectory based on a clustering metric

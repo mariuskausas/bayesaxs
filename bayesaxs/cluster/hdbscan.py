@@ -49,7 +49,7 @@ class HDBSCAN(BaseCluster):
 
 		return self._clusterer
 
-	def fit_predict(self, metric="xyz", **kwargs):
+	def fit_predict(self, metric, atom_selection):
 		"""
 		Predict cluster labels using HDBSCAN.
 
@@ -68,14 +68,12 @@ class HDBSCAN(BaseCluster):
 		----------
 		metric : str
 			Available options ("xyz", "distances", "DRID").
-			The "xyz" option is set by default.
-		kwargs : str
-			Additional parameters could be passed to mdtraj.compute_distances()
-			or mdtraj.compute_drid() functions.
+        atom_selection : ndarray
+            Numpy array (N, ) containing indices of atoms, which will be used for clustering.
 		"""
 
 		# Transform trajectory based on a clustering metric
-		cluster_input = _get_cluster_metric(metric)(traj=self._traj, **kwargs)
+		cluster_input = _get_cluster_metric(metric)(traj=self._traj, atom_selection=atom_selection)
 		# Predict cluster labels
 		self._cluster_labels = self._clusterer.fit_predict(cluster_input)
 
