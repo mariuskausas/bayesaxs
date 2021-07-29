@@ -171,7 +171,6 @@ def _extract_xyz(path_to_top, path_to_traj, atom_selection):
 
 	# Load the trajectory
 	traj = mdt.load(path_to_traj, top=path_to_top)
-	nframes = traj.n_frames
 
 	# Calculate XYZ RMSD between frames
 	rmsd_matrix = _compute_pairwise_rmsd(traj=traj, atom_selection=atom_selection)
